@@ -1078,7 +1078,7 @@ export default function App() {
           ))}
         </nav>
         <div className="header-right">
-          <span className="version">EARLY ACCESS · 0.1.2</span>
+          <span className="version">EARLY ACCESS · 0.1.3</span>
           {p && (
             <button
               className="primary small"
@@ -1102,18 +1102,10 @@ export default function App() {
       {!p ? (
         <main className="welcome">
           <div className="welcome-copy">
-            <span className="eyebrow">
-              <span className="tiny-line" /> A SPACE FOR YOUR NEXT CHAPTER
-            </span>
             <h1>
               Every story deserves
               <br />a beautiful home.
             </h1>
-            <p>
-              Write the words. Place the pictures. Bring it all together.
-              <br />
-              Your book, from its first page to a reading proof.
-            </p>
             <div className="welcome-actions">
               <button className="primary" onClick={() => setShowNew(true)}>
                 <Plus size={18} />
@@ -1125,66 +1117,32 @@ export default function App() {
                 Open a book
               </button>
             </div>
-            <div className="local-note">
-              <span className="green-dot" />
-              {storage.native
-                ? "Made for your desktop. Works offline. Your files stay yours."
-                : "Browser preview · native dialogs are available in the desktop app."}
-            </div>
-            <div className="recent">
-              <div className="section-label">RECENT PROJECTS</div>
-              {storage.recents().length ? (
-                storage.recents().map((r) => (
-                  <button key={r.path} onClick={() => void open(r.path)}>
-                    <BookOpen size={19} />
-                    <span>
-                      <strong>{r.title}</strong>
-                      <small>
-                        {new Date(r.modified).toLocaleDateString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
-                      </small>
-                    </span>
-                    <ChevronRight size={18} />
-                  </button>
-                ))
-              ) : (
-                <p>
-                  Your books will appear here. Let’s start with a blank page.
-                </p>
-              )}
-            </div>
           </div>
-          <div className="welcome-art" aria-hidden="true">
-            <div className="art-note top">A world of your making.</div>
-            <div className="cover-book">
-              <span className="cover-kicker">A STORY WAITING TO BE TOLD</span>
-              <div className="cover-title">
-                Somewhere
-                <br />
-                wonder
-                <br />
-                <i>begins.</i>
-              </div>
-              <div className="cover-landscape">
-                <div className="sun" />
-                <div className="hill hill-back" />
-                <div className="hill hill-front" />
-                <div className="tree">
-                  <i />
-                  <i />
-                  <i />
-                </div>
-                <div className="path" />
-              </div>
-              <span className="cover-footer">WORDS & WORLDS BY YOU</span>
-            </div>
-            <div className="art-note bottom">
-              One page at a time. <span>↗</span>
-            </div>
-          </div>
+          <section className="recent" aria-labelledby="recent-projects-title">
+            <h2 className="section-label" id="recent-projects-title">
+              RECENT PROJECTS
+            </h2>
+            {storage.recents().length ? (
+              storage.recents().map((r) => (
+                <button key={r.path} onClick={() => void open(r.path)}>
+                  <BookOpen size={19} />
+                  <span>
+                    <strong>{r.title}</strong>
+                    <small>
+                      {new Date(r.modified).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </small>
+                  </span>
+                  <ChevronRight size={18} />
+                </button>
+              ))
+            ) : (
+              <p>Your books will appear here. Let’s start with a blank page.</p>
+            )}
+          </section>
           <div className="welcome-bottom">
             <span>IMAGINE. WRITE. DESIGN.</span>
             <span>One project. All the possibilities.</span>
@@ -1788,7 +1746,7 @@ export default function App() {
                 <X size={18} />
               </button>
             </header>
-            <p>An offline book studio. Version 0.1.2.</p>
+            <p>An offline book studio. Version 0.1.3.</p>
             <p>
               Ctrl+N new · Ctrl+O open · Ctrl+S save
               <br />

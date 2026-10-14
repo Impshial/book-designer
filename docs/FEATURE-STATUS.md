@@ -1,4 +1,4 @@
-# Feature status — v0.1.2
+# Feature status — v0.1.3
 
 Status refers to actual implementation, with validation evidence in `VERIFICATION.md`. “Partial” means the listed working subset exists; it does not mean the full requirement is complete.
 

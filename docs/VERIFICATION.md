@@ -4,6 +4,7 @@ Tested on Windows x64 on 2026-10-14 with Node v24.19.0, Rust 1.99.0 (MSVC), the 
 
 ## Automated checks
 
+- v0.1.3 welcome-screen update: TypeScript and production build passed; the four existing browser workflows passed again. Visual checks covered empty, two-project and eight-project lists at 1366 × 900 and 960 × 640, long titles, scrolling and opening a recent project. The full core/native/browser suite results below are from v0.1.2; those unchanged areas were not rerun for this presentation-only update.
 - TypeScript strict checking and Vite production build: passed.
 - Core tests: 19 passed, covering all three style round-trips, unit conversion, invalid versions/geometry/references, crop-dependent PPI, exact text conservation across margins/type sizes, long Unicode words, structural breaks, Hybrid insert stability, overflow preservation, history, save serialization/failure recovery, editable source mapping across Unicode/lists/hard breaks, and completed PDF inspection.
 - Native Rust storage tests: 5 passed. Interrupted writes preserve original and recovery; invalid writes preserve original; creation refuses overwrite; portable copy round-trips; restoring a corrupt original preserves a valid backup.
