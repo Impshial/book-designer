@@ -6,7 +6,7 @@ A standalone Windows book studio built with Tauri 2, React, TypeScript, Konva, a
 
 Built outputs from this workspace:
 
-The latest delivery copies are in `output/windows/`: `Book-Designer-0.1.3-x64-Setup.exe`, `Book-Designer.exe`, and `SETUP.txt`.
+The latest delivery copies are in `output/windows/`: `Book-Designer-0.1.3-x64-Setup.exe`, `Book-Designer-0.1.3.exe`, and `SETUP.txt`.
 
 - `src-tauri/target/release/book-designer.exe` — portable application; requires Microsoft Edge WebView2 Runtime.
 - `src-tauri/target/release/bundle/nsis/Book Designer_0.1.3_x64-setup.exe` — Windows x64 installer. The installer can download WebView2 if absent; authoring and installed export work offline afterward.
