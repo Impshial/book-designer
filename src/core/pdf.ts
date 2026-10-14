@@ -24,6 +24,7 @@ import {
   serialize,
   parseProject,
   backgroundPlacement,
+  getPageBackground,
 } from "./model";
 import { preflight } from "./preflight";
 const ink = (hex: string) =>
@@ -88,33 +89,34 @@ export async function exportPdf(source: Project) {
             });
         }
     };
+    const pageBackground = getPageBackground(p, item);
+    page.drawRectangle({
+      x: 0,
+      y: 0,
+      width: p.setup.width,
+      height: p.setup.height,
+      color: ink(pageBackground.background),
+    });
+    const background = pageBackground.backgroundImage;
+    if (background) {
+      const asset = p.assets[background.assetId];
+      const box = backgroundPlacement(asset, p.setup, background.fit);
+      page.pushOperators(
+        pushGraphicsState(),
+        rectangle(0, 0, p.setup.width, p.setup.height),
+        clip(),
+        endPath(),
+      );
+      page.drawImage(images.get(asset.id), {
+        x: box.x,
+        y: p.setup.height - box.y - box.height,
+        width: box.width,
+        height: box.height,
+      });
+      page.pushOperators(popGraphicsState());
+    }
     if (item.kind === "flow") text(item.lines, p.setup.height);
     else if (item.design) {
-      page.drawRectangle({
-        x: 0,
-        y: 0,
-        width: p.setup.width,
-        height: p.setup.height,
-        color: ink(item.design.background),
-      });
-      const background = item.design.backgroundImage;
-      if (background) {
-        const asset = p.assets[background.assetId];
-        const box = backgroundPlacement(asset, p.setup, background.fit);
-        page.pushOperators(
-          pushGraphicsState(),
-          rectangle(0, 0, p.setup.width, p.setup.height),
-          clip(),
-          endPath(),
-        );
-        page.drawImage(images.get(asset.id), {
-          x: box.x,
-          y: p.setup.height - box.y - box.height,
-          width: box.width,
-          height: box.height,
-        });
-        page.pushOperators(popGraphicsState());
-      }
       for (const o of item.design.objects) {
         if (o.hidden) continue;
         const angle = (-o.rotation * Math.PI) / 180,

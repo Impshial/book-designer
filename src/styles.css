@@ -558,7 +558,8 @@ h3 {
 .thumbnail svg {
   display: block;
   width: 100%;
-  max-height: 145px;
+  height: auto;
+  aspect-ratio: auto;
   box-shadow: 0 2px 5px #354b311a;
   background: white;
 }
@@ -959,7 +960,6 @@ h3 {
 .document-editor {
   flex: none;
   position: relative;
-  padding-bottom: 12px;
 }
 .save-changes {
   width: 540px;
@@ -974,14 +974,48 @@ h3 {
   gap: 10px;
 }
 .document-controls {
-  position: sticky;
-  top: -17px;
-  z-index: 10;
-  background: #f5f7ef;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 10px #354b3110;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.header-formatting:empty {
+  display: none;
+}
+.header-formatting {
+  min-width: 0;
+}
+.document-bar {
+  flex-wrap: wrap;
+  height: auto;
+  min-height: 55px;
+  gap: 4px 12px;
+  padding-block: 5px;
+  flex-shrink: 0;
+}
+.document-bar:has(.document-controls) .document-info strong {
+  max-width: 150px;
+}
+.document-controls .writing-header {
+  padding: 0;
+  width: 110px;
+}
+.document-controls .writing-header > input {
+  font-size: 12px;
+  min-height: 28px;
+}
+.document-controls .writing-toolbar {
+  flex-wrap: nowrap;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+@media (max-width: 1250px) {
+  .document-bar:has(.document-controls) .document-info {
+    display: none;
+  }
+  .document-controls .writing-header {
+    width: 95px;
+  }
 }
 .editable-pages {
   position: relative;
@@ -1720,4 +1754,53 @@ h3 {
     padding-top: 12px;
     padding-bottom: 12px;
   }
+}
+
+/* The menu buttons stay above their dismiss layer, allowing native-style hover switching. */
+.menubar > .menu-container > button {
+  position: relative;
+  z-index: 32;
+}
+.asset-menu-dismiss {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+.asset-context-menu {
+  position: fixed;
+  z-index: 41;
+  min-width: 220px;
+}
+.thumbnail-item {
+  position: relative;
+  min-width: 0;
+}
+.thumbnail {
+  width: 100%;
+}
+.thumbnail-delete {
+  position: absolute;
+  right: -15px;
+  bottom: -4px;
+  width: 24px;
+  height: 24px;
+  background: var(--paper);
+}
+.thumbnail > span {
+  padding-right: 15px;
+}
+.book-title-input,
+.book-author-input {
+  margin-bottom: 12px;
+}
+.inspector input[type="color"] {
+  height: 44px;
+  padding: 4px;
+}
+.inspector input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.inspector input[type="color"]::-webkit-color-swatch {
+  border: 0;
+  border-radius: 3px;
 }

@@ -28,6 +28,12 @@ import { exportPdf } from "../src/core/pdf";
 import { SaveQueue } from "../src/services/storage";
 import { getSchema } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
+import { deleteManuscriptPage } from "../src/core/manuscript";
+import {
+  applyBackgroundToAll,
+  getPageBackground,
+  plainText,
+} from "../src/core/model";
 beforeAll(() => {
   for (const [key, file] of Object.entries(fontFiles))
     fonts.add(
@@ -46,6 +52,87 @@ const manuscript = (text: string): RichNode => ({
       content: [{ type: "text", text }],
     },
   ],
+});
+it("deletes only the selected portion of a flowing paragraph and undo restores the complete manuscript", () => {
+  const p = book();
+  const story = "A long flowing story with its original words. ".repeat(200);
+  p.chapters[0].document = manuscript(story);
+  const pages = layoutProject(p);
+  expect(pages.length).toBeGreaterThan(2);
+  const range = pages[1].sourceRange!;
+  const history = new History(p);
+  const deleted = history.commit((d) => deleteManuscriptPage(d, pages[1]));
+  expect(plainText(deleted.chapters[0].document)).toBe(
+    story.slice(0, range.from - 1) + story.slice(range.to - 1),
+  );
+  expect(parseProject(serialize(deleted))).toBeDefined();
+  expect(history.undo().chapters[0].document).toEqual(p.chapters[0].document);
+});
+
+it("deletes explicit and empty page breaks without losing adjacent chapter text", () => {
+  for (const index of [0, 1, 2]) {
+    const p = book();
+    const paragraph = (text: string): RichNode => ({
+      type: "paragraph",
+      content: [{ type: "text", text }],
+    });
+    p.chapters[0].document = {
+      type: "doc",
+      content: [
+        paragraph("First"),
+        { type: "horizontalRule" },
+        paragraph("Second"),
+        { type: "horizontalRule" },
+        paragraph("Third"),
+      ],
+    };
+    deleteManuscriptPage(p, layoutProject(p)[index]);
+    expect(layoutProject(p)).toHaveLength(2);
+    expect(plainText(p.chapters[0].document)).not.toContain(
+      ["First", "Second", "Third"][index],
+    );
+    for (const [i, text] of ["First", "Second", "Third"].entries())
+      if (i !== index)
+        expect(plainText(p.chapters[0].document)).toContain(text);
+  }
+  const p = book();
+  p.chapters[0].document = {
+    type: "doc",
+    content: [{ type: "horizontalRule" }, { type: "paragraph" }],
+  };
+  deleteManuscriptPage(p, layoutProject(p)[0]);
+  expect(layoutProject(p)).toHaveLength(1);
+  expect(() => serialize(p)).not.toThrow();
+});
+
+it("all-page backgrounds preserve independent settings and survive hybrid serialization and PDF export", async () => {
+  const p = createProject(
+    "hybrid",
+    "All backgrounds",
+    "",
+    defaultSetup("hybrid"),
+  );
+  p.pages.push(blankPage("Art page"));
+  p.sequence.unshift({ kind: "design", id: p.pages[0].id });
+  const fixture = parseProject(
+    readFileSync("samples/picture-book.bookdesigner", "utf8"),
+  );
+  p.assets = fixture.assets;
+  const source = {
+    background: "#d9e8cb",
+    backgroundImage: {
+      assetId: Object.keys(p.assets)[0],
+      fit: "contain" as const,
+    },
+  };
+  applyBackgroundToAll(p, source, "background");
+  applyBackgroundToAll(p, source, "backgroundImage");
+  const reopened = parseProject(serialize(p));
+  for (const page of layoutProject(reopened))
+    expect(getPageBackground(reopened, page)).toMatchObject(source);
+  expect((await exportPdf(reopened)).bytes.length).toBeGreaterThan(1000);
+  reopened.chapters[0].pageBackground!.backgroundImage!.assetId = "missing";
+  expect(() => serialize(reopened)).toThrow(/Missing background artwork/);
 });
 it("maps printed lines back to editable source positions across lists, Unicode and hard breaks", () => {
   const p = book();

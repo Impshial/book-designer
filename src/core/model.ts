@@ -100,13 +100,16 @@ export const ObjectSchema = z
     "Crop exceeds image bounds.",
   );
 export type BookObject = z.infer<typeof ObjectSchema>;
-export const PageSchema = z.object({
-  id: z.string(),
-  name: z.string(),
+export const BackgroundSchema = z.object({
   background: color,
   backgroundImage: z
     .object({ assetId: z.string(), fit: z.enum(["cover", "contain"]) })
     .optional(),
+});
+export type PageBackground = z.infer<typeof BackgroundSchema>;
+export const PageSchema = BackgroundSchema.extend({
+  id: z.string(),
+  name: z.string(),
   objects: z.array(ObjectSchema),
   readingOrder: z.array(z.string()),
 });
@@ -176,7 +179,12 @@ export const ProjectSchema = z
     setup: SetupSchema,
     pages: z.array(PageSchema).max(5000),
     chapters: z.array(
-      z.object({ id: z.string(), title: z.string(), document: RichNodeSchema }),
+      z.object({
+        id: z.string(),
+        title: z.string(),
+        document: RichNodeSchema,
+        pageBackground: BackgroundSchema.optional(),
+      }),
     ),
     sequence: z.array(
       z.discriminatedUnion("kind", [
@@ -243,6 +251,14 @@ export const ProjectSchema = z
     for (const [id, a] of Object.entries(p.assets))
       if (id !== a.id)
         ctx.addIssue({ code: "custom", message: "Asset key mismatch." });
+    for (const chapter of p.chapters) {
+      const image = chapter.pageBackground?.backgroundImage;
+      if (image && !p.assets[image.assetId])
+        ctx.addIssue({
+          code: "custom",
+          message: `Missing background artwork for ${chapter.title}.`,
+        });
+    }
     for (const page of p.pages) {
       if (page.backgroundImage && !p.assets[page.backgroundImage.assetId])
         ctx.addIssue({
@@ -448,4 +464,42 @@ export function backgroundPlacement(
     width,
     height,
   };
+}
+
+export function getPageBackground(
+  p: Project,
+  page: { design?: DesignPage; chapterId?: string },
+): PageBackground {
+  return (
+    page.design ??
+    p.chapters.find((c) => c.id === page.chapterId)?.pageBackground ?? {
+      background: "#ffffff",
+    }
+  );
+}
+export function editPageBackground(
+  p: Project,
+  page: { id: string; chapterId?: string },
+): PageBackground {
+  const design = p.pages.find((pg) => pg.id === page.id);
+  if (design) return design;
+  const chapter = p.chapters.find((c) => c.id === page.chapterId)!;
+  return (chapter.pageBackground ??= { background: "#ffffff" });
+}
+export function applyBackgroundToAll(
+  p: Project,
+  source: PageBackground,
+  field: keyof PageBackground,
+) {
+  const backgrounds = [
+    ...p.pages,
+    ...p.chapters.map((c) => (c.pageBackground ??= { background: "#ffffff" })),
+  ];
+  for (const background of backgrounds) {
+    if (field === "background") background.background = source.background;
+    else
+      background.backgroundImage = source.backgroundImage
+        ? { ...source.backgroundImage }
+        : undefined;
+  }
 }

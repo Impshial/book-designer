@@ -39,6 +39,7 @@ export type LayoutPage = {
   chapterTitle?: string;
   lines: TextLine[];
   number: number;
+  sourceRange?: { from: number; to: number };
 };
 export function pageNumberLine(p: Project, number: number): TextLine {
   const style = p.setup.numberStyle ?? defaultNumberStyle;
@@ -177,17 +178,17 @@ type Block = {
   to: number;
   prefix: string;
 };
+const nodeSize = (n: RichNode): number =>
+  n.text !== undefined
+    ? n.text.length
+    : n.content
+      ? 2 + n.content.reduce((sum, child) => sum + nodeSize(child), 0)
+      : n.type === "paragraph" || n.type === "heading"
+        ? 2
+        : 1;
 export function blocks(doc: RichNode, p: Project): Block[] {
   let counter = 0;
   const result: Block[] = [];
-  const nodeSize = (n: RichNode): number =>
-    n.text !== undefined
-      ? n.text.length
-      : n.content
-        ? 2 + n.content.reduce((sum, child) => sum + nodeSize(child), 0)
-        : n.type === "paragraph" || n.type === "heading"
-          ? 2
-          : 1;
   function visit(n: RichNode, pos = -1, prefix = "") {
     if (n.type === "paragraph" || n.type === "heading") {
       const heading = n.type === "heading",
@@ -309,8 +310,10 @@ export function layoutProject(
     let page: LayoutPage;
     let y = s.top;
     let pageIndex = 0;
-    const nextPage = () => {
+    const nextPage = (from: number) => {
+      if (page) page.sourceRange!.to = from;
       page = {
+        sourceRange: { from, to: nodeSize(chapter.document) - 2 },
         id: `${chapter.id}:${pageIndex++}`,
         kind: "flow",
         chapterId: chapter.id,
@@ -321,10 +324,10 @@ export function layoutProject(
       pages.push(page);
       y = s.top;
     };
-    nextPage();
+    nextPage(0);
     for (const b of blocks(chapter.document, p)) {
       if (b.breakBefore) {
-        nextPage();
+        nextPage(b.to);
         continue;
       }
       const size = b.runs[0]?.size ?? p.typography.size;
@@ -341,9 +344,11 @@ export function layoutProject(
               : Math.min(lines.length, 2)) >
           s.height - s.bottom
       )
-        nextPage();
+        nextPage(b.from - 1);
       for (let i = 0; i < lines.length; i++) {
-        if (y + h > s.height - s.bottom && page!.lines.length) nextPage();
+        const from = b.from + Math.max(0, consumed - b.prefix.length);
+        if (y + h > s.height - s.bottom && page!.lines.length)
+          nextPage(i ? from : b.from - 1);
         // Keep two final paragraph lines together when there is room on a fresh page.
         if (
           i === lines.length - 2 &&
@@ -351,10 +356,9 @@ export function layoutProject(
           y + 2 * h > s.height - s.bottom &&
           2 * h <= s.height - s.top - s.bottom
         )
-          nextPage();
+          nextPage(i ? from : b.from - 1);
         const runs = lines[i],
           lineWidth = runs.reduce((a, r) => a + r.width, 0);
-        const from = b.from + Math.max(0, consumed - b.prefix.length);
         consumed += runs.reduce((sum, r) => sum + r.text.length, 0);
         const to = b.from + Math.max(0, consumed - b.prefix.length);
         if (raw[consumed] === "\n") consumed++;

@@ -36,6 +36,8 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   blankPage,
   backgroundPlacement,
+  getPageBackground,
+  editPageBackground,
   objectName,
   emptyDoc,
   newObject,
@@ -47,11 +49,13 @@ import {
   type Asset,
   type RichNode,
 } from "./core/model";
+import { deleteManuscriptPage } from "./core/manuscript";
 import { History } from "./core/history";
 import { layoutProject, pageNumberLine, type LayoutPage } from "./core/layout";
 import { NewBook, styleNames } from "./components/NewBook";
 import { PageCanvas } from "./components/PageCanvas";
 import { Manuscript } from "./components/Manuscript";
+import { ConfirmDeletePage } from "./components/ConfirmDeletePage";
 import { SaveChanges } from "./components/SaveChanges";
 import { Inspector } from "./components/Inspector";
 import { ResizeHandle } from "./components/ResizeHandle";
@@ -60,7 +64,7 @@ import { Publish } from "./components/Publish";
 import * as storage from "./services/storage";
 
 function Thumbnail({ p, page }: { p: Project; page: LayoutPage }) {
-  const background = page.design?.backgroundImage;
+  const background = getPageBackground(p, page).backgroundImage;
   const asset = background ? p.assets[background.assetId] : undefined;
   const number = p.setup.numbering ? pageNumberLine(p, page.number) : undefined;
   return (
@@ -68,7 +72,7 @@ function Thumbnail({ p, page }: { p: Project; page: LayoutPage }) {
       <rect
         width="100%"
         height="100%"
-        fill={page.design?.background ?? "white"}
+        fill={getPageBackground(p, page).background}
       />
       {background && asset && (
         <image
@@ -176,6 +180,13 @@ export default function App() {
     [editing, setEditing] = useState<string | null>(null),
     [editText, setEditText] = useState("");
   const [ready, setReady] = useState(false);
+  const [toolbarHost, setToolbarHost] = useState<HTMLDivElement | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<LayoutPage | null>(null);
+  const [assetMenu, setAssetMenu] = useState<{
+    id: string;
+    x: number;
+    y: number;
+  } | null>(null);
   const savedWidth = (key: string, fallback: number) => {
     try {
       const value = Number(localStorage.getItem(key));
@@ -286,7 +297,7 @@ export default function App() {
     setSelection([]);
     setPageIndex(0);
     setFacing(project.setup.facing);
-    setFitToPage(project.style === "picture");
+    setFitToPage(true);
     setTab(project.style === "picture" ? "pages" : "chapters");
     setShowNew(false);
     clipboard.current = [];
@@ -489,12 +500,14 @@ export default function App() {
     file?: File,
     existing?: Asset,
     background = false,
+    libraryOnly = false,
+    targetPage = page,
   ) {
-    if (!p || !page?.design) {
+    if (!p || (!libraryOnly && !background && !targetPage?.design)) {
       setToast("Choose a designed page to add artwork.");
       return;
     }
-    const targetId = page.id;
+    const targetId = targetPage.id;
     try {
       let asset = existing;
       if (!asset) {
@@ -541,13 +554,27 @@ export default function App() {
       }
       const a = asset;
       if (latest.current.p?.id !== p.id) return;
+      if (libraryOnly) {
+        commit((d) => {
+          d.assets[a.id] = a;
+        });
+        setToast(
+          "Artwork added to your library. Double-click or drag it onto a page to place it.",
+        );
+        return;
+      }
       if (background) {
         commit((d) => {
-          const pg = d.pages.find((x) => x.id === targetId);
-          if (pg) {
-            d.assets[a.id] = a;
-            pg.backgroundImage = { assetId: a.id, fit: "cover" };
-          }
+          if (
+            !d.pages.some((pg) => pg.id === targetId) &&
+            !d.chapters.some((c) => c.id === targetPage.chapterId)
+          )
+            return;
+          d.assets[a.id] = a;
+          editPageBackground(d, targetPage).backgroundImage = {
+            assetId: a.id,
+            fit: "cover",
+          };
         });
         setSelection([]);
         return;
@@ -671,20 +698,21 @@ export default function App() {
     if (p.style === "picture") setPageIndex(pageIndex + 1);
     setTab("pages");
   }
-  function deletePage() {
-    if (!p || !page.design || (p.style === "picture" && p.pages.length <= 1))
-      return;
-    if (
-      !confirm(
-        "Delete this designed page and its objects? You can undo this action.",
-      )
-    )
-      return;
+  function deletePage(target = page) {
+    if (!p || !target || (p.style === "picture" && p.pages.length <= 1)) return;
+    setDeleteTarget(target);
+  }
+  function confirmDeletePage() {
+    if (!deleteTarget || !p) return;
+    const index = pages.findIndex((pg) => pg.id === deleteTarget.id);
     commit((d) => {
-      d.pages = d.pages.filter((x) => x.id !== page.id);
-      d.sequence = d.sequence.filter((x) => x.id !== page.id);
+      if (deleteTarget.kind === "flow") deleteManuscriptPage(d, deleteTarget);
+      d.pages = d.pages.filter((x) => x.id !== deleteTarget.id);
+      d.sequence = d.sequence.filter((x) => x.id !== deleteTarget.id);
     });
+    setPageIndex(Math.max(0, Math.min(index, pages.length - 2)));
     setSelection([]);
+    setDeleteTarget(null);
   }
   function movePage(direction: number) {
     if (!p || !page.design) return;
@@ -761,7 +789,7 @@ export default function App() {
     const count = writingPage ? 1 : Math.max(1, visiblePages.length);
     const pad = !writingPage && guides ? 36 : 0;
     const caption = writingPage
-      ? 100
+      ? 0
       : (scroll.querySelector(".page-caption")?.getBoundingClientRect()
           .height ?? 17);
     const availableWidth =
@@ -801,18 +829,7 @@ export default function App() {
   ]);
   useEffect(() => {
     if (ready) {
-      if (p?.style !== "picture" && workspace.current)
-        setZoom(
-          Math.max(
-            0.5,
-            Math.min(
-              1.25,
-              (workspace.current.getBoundingClientRect().width - 80) /
-                p!.setup.width,
-            ),
-          ),
-        );
-      else fit();
+      fit();
       setReady(false);
     }
   }, [ready]);
@@ -881,6 +898,7 @@ export default function App() {
       if (e.key === "Escape") {
         setSelection([]);
         setMenu("");
+        setAssetMenu(null);
         return;
       }
       if (typing || !page?.design) return;
@@ -1101,9 +1119,8 @@ export default function App() {
       },
       {
         label: "Delete page",
-        action: deletePage,
-        disabled:
-          !page?.design || (p?.style === "picture" && p.pages.length === 1),
+        action: () => deletePage(),
+        disabled: !page || (p?.style === "picture" && p.pages.length === 1),
       },
       {
         label: "Move page earlier",
@@ -1177,22 +1194,36 @@ export default function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <button
-          className="brand"
-          onClick={() => {
-            if (!p) setShowNew(true);
-          }}
-        >
-          <span className="brand-icon">
-            <BookOpen size={20} />
-          </span>
-          <strong>Book Designer</strong>
-        </button>
+        <span className="brand-icon" aria-hidden="true">
+          <BookOpen size={20} />
+        </span>
         <nav className="menubar" aria-label="Application menus">
           {Object.keys(menuItems).map((name) => (
             <div key={name} className="menu-container">
               <button
                 className={menu === name ? "active" : ""}
+                aria-haspopup="menu"
+                aria-expanded={menu === name}
+                onMouseEnter={() => {
+                  if (menu) setMenu(name);
+                }}
+                onKeyDown={(e) => {
+                  const names = Object.keys(menuItems);
+                  if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+                    e.preventDefault();
+                    const next =
+                      names[
+                        (names.indexOf(name) +
+                          (e.key === "ArrowRight" ? 1 : names.length - 1)) %
+                          names.length
+                      ];
+                    setMenu(next);
+                    document
+                      .querySelector<HTMLButtonElement>(`[data-menu="${next}"]`)
+                      ?.focus();
+                  }
+                }}
+                data-menu={name}
                 onClick={() => setMenu(menu === name ? "" : name)}
               >
                 {name}
@@ -1221,7 +1252,7 @@ export default function App() {
           ))}
         </nav>
         <div className="header-right">
-          <span className="version">EARLY ACCESS · 0.1.4</span>
+          <span className="version">EARLY ACCESS · 0.1.5</span>
           {p && (
             <button
               className="primary small"
@@ -1299,6 +1330,7 @@ export default function App() {
               <strong>{p.title}</strong>
               <span>{styleNames[p.style]}</span>
             </div>
+            <div className="header-formatting" ref={setToolbarHost} />
             <div className="toolbar">
               <button
                 className="icon"
@@ -1430,25 +1462,39 @@ export default function App() {
                       </div>
                       <div className="thumbnails">
                         {pages.map((pg, i) => (
-                          <button
-                            className={`thumbnail ${i === pageIndex ? "active" : ""}`}
-                            key={pg.id}
-                            onClick={() => {
-                              setPageIndex(i);
-                              setSelection([]);
-                            }}
-                            aria-label={`Go to page ${i + 1}`}
-                          >
-                            <div className="thumbnail-paper">
-                              <Thumbnail p={p} page={pg} />
-                            </div>
-                            <span>
-                              {i + 1}
-                              <small>
-                                {pg.kind === "design" ? "Designed" : "Text"}
-                              </small>
-                            </span>
-                          </button>
+                          <div className="thumbnail-item" key={pg.id}>
+                            <button
+                              className={`thumbnail ${i === pageIndex ? "active" : ""}`}
+                              onClick={() => {
+                                setPageIndex(i);
+                                setSelection([]);
+                              }}
+                              aria-label={`Go to page ${i + 1}`}
+                            >
+                              <div className="thumbnail-paper">
+                                <Thumbnail p={p} page={pg} />
+                              </div>
+                              <span>
+                                {i + 1}
+                                <small>
+                                  {pg.kind === "design" ? "Designed" : "Text"}
+                                </small>
+                              </span>
+                            </button>
+                            {
+                              <button
+                                className="thumbnail-delete"
+                                title={`Delete page ${i + 1}`}
+                                aria-label={`Delete page ${i + 1}`}
+                                disabled={
+                                  p.style === "picture" && p.pages.length <= 1
+                                }
+                                onClick={() => deletePage(pg)}
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            }
+                          </div>
                         ))}
                       </div>
                     </>
@@ -1501,8 +1547,9 @@ export default function App() {
                         <span>ORIGINAL ARTWORK</span>
                         <button
                           aria-label="Import artwork"
-                          disabled={!page?.design}
-                          onClick={() => void importImage()}
+                          onClick={() =>
+                            void importImage(undefined, undefined, false, true)
+                          }
                         >
                           <Plus size={16} />
                         </button>
@@ -1511,9 +1558,35 @@ export default function App() {
                         <button
                           key={a.id}
                           className="asset-card"
-                          onClick={() => void importImage(undefined, a)}
+                          draggable
+                          onDoubleClick={() => void importImage(undefined, a)}
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData(
+                              "application/x-book-asset",
+                              a.id,
+                            );
+                            e.dataTransfer.effectAllowed = "copy";
+                          }}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            setAssetMenu({
+                              id: a.id,
+                              x: Math.min(e.clientX, window.innerWidth - 240),
+                              y: Math.min(e.clientY, window.innerHeight - 70),
+                            });
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              void importImage(undefined, a);
+                            }
+                          }}
                         >
-                          <img src={`data:${a.mime};base64,${a.data}`} alt="" />
+                          <img
+                            src={`data:${a.mime};base64,${a.data}`}
+                            alt=""
+                            draggable={false}
+                          />
                           <strong>{a.name}</strong>
                           <small>
                             {a.width} × {a.height} px
@@ -1554,8 +1627,22 @@ export default function App() {
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
                 e.preventDefault();
-                const file = e.dataTransfer.files[0];
-                if (file) void importImage(file);
+                const asset =
+                  p.assets[e.dataTransfer.getData("application/x-book-asset")];
+                const wrapper = (e.target as HTMLElement).closest<HTMLElement>(
+                  ".page-wrap",
+                );
+                const target = wrapper
+                  ? pages[Number(wrapper.dataset.pageNumber) - 1]
+                  : page;
+                if (asset) {
+                  setPageIndex(pages.findIndex((pg) => pg.id === target.id));
+                  void importImage(undefined, asset, false, false, target);
+                } else {
+                  const file = e.dataTransfer.files[0];
+                  if (file)
+                    void importImage(file, undefined, false, false, target);
+                }
               }}
               onPaste={(e) => {
                 if (e.clipboardData.files.length) {
@@ -1630,6 +1717,7 @@ export default function App() {
                         zoom={zoom}
                         guides={guides}
                         editable={!pan}
+                        toolbarHost={toolbarHost}
                         onTitle={(title) =>
                           commit((d) => {
                             d.chapters.find(
@@ -1764,6 +1852,43 @@ export default function App() {
           <Check size={16} />
           {toast}
         </div>
+      )}
+      {deleteTarget && (
+        <ConfirmDeletePage
+          number={deleteTarget.number}
+          flow={deleteTarget.kind === "flow"}
+          cancel={() => setDeleteTarget(null)}
+          confirm={confirmDeletePage}
+        />
+      )}
+      {assetMenu && (
+        <>
+          <div
+            className="asset-menu-dismiss"
+            onClick={() => setAssetMenu(null)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setAssetMenu(null);
+            }}
+          />
+          <div
+            className="dropdown asset-context-menu"
+            role="menu"
+            style={{ left: assetMenu.x, top: assetMenu.y }}
+          >
+            <button
+              role="menuitem"
+              disabled={!page?.design}
+              onClick={() => {
+                const asset = p?.assets[assetMenu.id];
+                setAssetMenu(null);
+                if (asset) void importImage(undefined, asset);
+              }}
+            >
+              Add to page
+            </button>
+          </div>
+        </>
       )}
       {showNew && (
         <NewBook
@@ -1901,7 +2026,7 @@ export default function App() {
                 <X size={18} />
               </button>
             </header>
-            <p>An offline book studio. Version 0.1.4.</p>
+            <p>An offline book studio. Version 0.1.5.</p>
             <p>
               Ctrl+N new · Ctrl+O open · Ctrl+S save
               <br />

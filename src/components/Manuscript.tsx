@@ -1,8 +1,7 @@
 import { useEffect, useRef, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { EditorContent, useEditor } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import TextAlign from "@tiptap/extension-text-align";
-import UniqueID from "@tiptap/extension-unique-id";
+import { manuscriptExtensions } from "../core/manuscript";
 import {
   Bold,
   Italic,
@@ -14,7 +13,7 @@ import {
   AlignRight,
   Scissors,
 } from "lucide-react";
-import { type Project, type RichNode } from "../core/model";
+import { getPageBackground, type Project, type RichNode } from "../core/model";
 import { pageNumberLine, type LayoutPage } from "../core/layout";
 import { cssFont } from "../core/fonts";
 import { pageEditing, PAGE_GAP } from "./pageEditing";
@@ -31,6 +30,7 @@ export function Manuscript({
   zoom,
   guides,
   editable,
+  toolbarHost,
 }: {
   document: RichNode;
   onChange: (doc: RichNode) => void;
@@ -44,6 +44,7 @@ export function Manuscript({
   zoom: number;
   guides: boolean;
   editable: boolean;
+  toolbarHost: HTMLElement | null;
 }) {
   const change = useRef(onChange);
   change.current = onChange;
@@ -60,21 +61,7 @@ export function Manuscript({
     pages[0].number,
   ]);
   const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        undoRedo: false,
-        link: false,
-        codeBlock: false,
-        code: false,
-        strike: false,
-      }),
-      TextAlign.configure({ types: ["heading", "paragraph"] }),
-      UniqueID.configure({
-        types: ["heading", "paragraph"],
-        attributeName: "id",
-      }),
-      pagination.extension,
-    ],
+    extensions: [...manuscriptExtensions(), pagination.extension],
     content: document,
     editorProps: {
       attributes: {
@@ -127,100 +114,104 @@ export function Manuscript({
     <section
       className="document-editor"
       ref={root}
-      style={{ width: Math.max(480, project.setup.width * zoom) }}
+      style={{ width: project.setup.width * zoom }}
     >
-      <div className="document-controls">
-        <div className="writing-header">
-          <input
-            aria-label="Chapter title"
-            value={title}
-            onChange={(e) => onTitle(e.target.value)}
-          />
-        </div>
-        <div className="writing-toolbar">
-          <select
-            aria-label="Paragraph style"
-            value={
-              editor.isActive("heading", { level: 1 })
-                ? "1"
-                : editor.isActive("heading", { level: 2 })
-                  ? "2"
-                  : "paragraph"
-            }
-            onChange={(e) => {
-              if (e.target.value === "paragraph")
-                editor.chain().focus().setParagraph().run();
-              else
-                editor
-                  .chain()
-                  .focus()
-                  .toggleHeading({ level: Number(e.target.value) as 1 | 2 })
-                  .run();
-            }}
-          >
-            <option value="paragraph">Body text</option>
-            <option value="1">Heading 1</option>
-            <option value="2">Heading 2</option>
-          </select>
-          {[
-            [Bold, () => editor.chain().focus().toggleBold().run(), "Bold"],
-            [
-              Italic,
-              () => editor.chain().focus().toggleItalic().run(),
-              "Italic",
-            ],
-            [
-              Underline,
-              () => editor.chain().focus().toggleUnderline().run(),
-              "Underline",
-            ],
-            [
-              List,
-              () => editor.chain().focus().toggleBulletList().run(),
-              "Bulleted list",
-            ],
-            [
-              ListOrdered,
-              () => editor.chain().focus().toggleOrderedList().run(),
-              "Numbered list",
-            ],
-            [
-              AlignLeft,
-              () => editor.chain().focus().setTextAlign("left").run(),
-              "Align left",
-            ],
-            [
-              AlignCenter,
-              () => editor.chain().focus().setTextAlign("center").run(),
-              "Align center",
-            ],
-            [
-              AlignRight,
-              () => editor.chain().focus().setTextAlign("right").run(),
-              "Align right",
-            ],
-            [
-              Scissors,
-              () => editor.chain().focus().setHorizontalRule().run(),
-              "Insert page break",
-            ],
-          ].map(([Icon, action, label]) => {
-            const I = Icon as typeof Bold;
-            return (
-              <button
-                key={String(label)}
-                className="icon"
-                title={String(label)}
-                aria-label={String(label)}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={action as () => void}
+      {toolbarHost &&
+        createPortal(
+          <div className="document-controls">
+            <div className="writing-header">
+              <input
+                aria-label="Chapter title"
+                value={title}
+                onChange={(e) => onTitle(e.target.value)}
+              />
+            </div>
+            <div className="writing-toolbar">
+              <select
+                aria-label="Paragraph style"
+                value={
+                  editor.isActive("heading", { level: 1 })
+                    ? "1"
+                    : editor.isActive("heading", { level: 2 })
+                      ? "2"
+                      : "paragraph"
+                }
+                onChange={(e) => {
+                  if (e.target.value === "paragraph")
+                    editor.chain().focus().setParagraph().run();
+                  else
+                    editor
+                      .chain()
+                      .focus()
+                      .toggleHeading({ level: Number(e.target.value) as 1 | 2 })
+                      .run();
+                }}
               >
-                <I size={16} />
-              </button>
-            );
-          })}
-        </div>
-      </div>
+                <option value="paragraph">Body text</option>
+                <option value="1">Heading 1</option>
+                <option value="2">Heading 2</option>
+              </select>
+              {[
+                [Bold, () => editor.chain().focus().toggleBold().run(), "Bold"],
+                [
+                  Italic,
+                  () => editor.chain().focus().toggleItalic().run(),
+                  "Italic",
+                ],
+                [
+                  Underline,
+                  () => editor.chain().focus().toggleUnderline().run(),
+                  "Underline",
+                ],
+                [
+                  List,
+                  () => editor.chain().focus().toggleBulletList().run(),
+                  "Bulleted list",
+                ],
+                [
+                  ListOrdered,
+                  () => editor.chain().focus().toggleOrderedList().run(),
+                  "Numbered list",
+                ],
+                [
+                  AlignLeft,
+                  () => editor.chain().focus().setTextAlign("left").run(),
+                  "Align left",
+                ],
+                [
+                  AlignCenter,
+                  () => editor.chain().focus().setTextAlign("center").run(),
+                  "Align center",
+                ],
+                [
+                  AlignRight,
+                  () => editor.chain().focus().setTextAlign("right").run(),
+                  "Align right",
+                ],
+                [
+                  Scissors,
+                  () => editor.chain().focus().setHorizontalRule().run(),
+                  "Insert page break",
+                ],
+              ].map(([Icon, action, label]) => {
+                const I = Icon as typeof Bold;
+                return (
+                  <button
+                    key={String(label)}
+                    className="icon"
+                    title={String(label)}
+                    aria-label={String(label)}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={action as () => void}
+                  >
+                    <I size={16} />
+                  </button>
+                );
+              })}
+            </div>
+          </div>,
+          toolbarHost,
+        )}
       <div
         className="editable-pages"
         style={{
@@ -236,6 +227,10 @@ export function Manuscript({
         <div className="page-sheets" aria-hidden="true">
           {pages.map((pg, index) => {
             const number = pageNumberLine(project, pg.number);
+            const background = getPageBackground(project, pg);
+            const image =
+              background.backgroundImage &&
+              project.assets[background.backgroundImage.assetId];
             return (
               <div
                 key={pg.id}
@@ -245,6 +240,13 @@ export function Manuscript({
                   top: index * (project.setup.height + PAGE_GAP),
                   width: project.setup.width,
                   height: project.setup.height,
+                  backgroundColor: background.background,
+                  backgroundImage: image
+                    ? `url(data:${image.mime};base64,${image.data})`
+                    : undefined,
+                  backgroundSize: background.backgroundImage?.fit,
+                  backgroundPosition: "center",
+                  backgroundRepeat: "no-repeat",
                 }}
               >
                 {guides && (

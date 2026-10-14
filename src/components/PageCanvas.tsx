@@ -14,6 +14,7 @@ import {
 import Konva from "konva";
 import {
   backgroundPlacement,
+  getPageBackground,
   isLeftPage,
   type BookObject,
   type Project,
@@ -79,7 +80,7 @@ function Artwork({ o, p }: { o: BookObject; p: Project }) {
   );
 }
 function PageBackground({ p, page }: { p: Project; page: LayoutPage }) {
-  const background = page.design?.backgroundImage;
+  const background = getPageBackground(p, page).backgroundImage;
   const asset = background ? p.assets[background.assetId] : undefined;
   const [image, setImage] = useState<HTMLImageElement>();
   useEffect(() => {
@@ -212,7 +213,7 @@ export function PageCanvas({
             name="paper"
             width={s.width}
             height={s.height}
-            fill={page.design?.background ?? "#ffffff"}
+            fill={getPageBackground(p, page).background}
             shadowColor="#294236"
             shadowBlur={12 / zoom}
             shadowOpacity={0.1}

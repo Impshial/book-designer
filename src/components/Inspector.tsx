@@ -11,6 +11,9 @@ import {
 } from "lucide-react";
 import {
   effectivePpi,
+  getPageBackground,
+  editPageBackground,
+  applyBackgroundToAll,
   objectName,
   fromPoints,
   toPoints,
@@ -44,6 +47,7 @@ export function Inspector({
   backgroundImage: () => void;
 }) {
   const o = page.design?.objects.find((o) => o.id === selection[0]);
+  const background = getPageBackground(p, page);
   const unit = p.setup.unit;
   const n = (v: number) => Number(fromPoints(v, unit).toFixed(3));
   const set = (patch: Partial<BookObject>) => {
@@ -378,34 +382,29 @@ export function Inspector({
           </>
         ) : (
           <>
-            <div className="book-meta">
-              <span className="eyebrow">YOUR BOOK</span>
-              <h3>{p.title}</h3>
-              <p>{p.author || "Author not set"}</p>
-            </div>
-            <label>
-              Title
-              <input
-                value={p.title}
-                onChange={(e) => {
-                  if (e.target.value.trim())
-                    commit((d) => {
-                      d.title = e.target.value;
-                    });
-                }}
-              />
-            </label>
-            <label>
-              Author
-              <input
-                value={p.author}
-                onChange={(e) =>
+            <input
+              className="book-title-input"
+              aria-label="Title"
+              placeholder="Book title"
+              value={p.title}
+              onChange={(e) => {
+                if (e.target.value.trim())
                   commit((d) => {
-                    d.author = e.target.value;
-                  })
-                }
-              />
-            </label>
+                    d.title = e.target.value;
+                  });
+              }}
+            />
+            <input
+              className="book-author-input"
+              aria-label="Author"
+              placeholder="Author"
+              value={p.author}
+              onChange={(e) =>
+                commit((d) => {
+                  d.author = e.target.value;
+                })
+              }
+            />
             <div className="section-label">PAGE SETUP</div>
             <div className="dimension-summary">
               {n(p.setup.width)} × {n(p.setup.height)} {unit}
@@ -439,25 +438,29 @@ export function Inspector({
                 />
               </label>
             </div>
-            <div className="section-label">MARGINS ({unit.toUpperCase()})</div>
-            <div className="field-row four">
-              {(["top", "bottom", "inside", "outside"] as const).map((key) => (
-                <label key={key}>
-                  {key}
-                  <input
-                    type="number"
-                    step={0.05}
-                    min={0}
-                    value={n(p.setup[key])}
-                    onChange={(e) =>
-                      changeSetup({
-                        [key]: toPoints(Number(e.target.value), unit),
-                      })
-                    }
-                  />
-                </label>
-              ))}
-            </div>
+            <details className="number-settings margin-settings">
+              <summary>Margins ({unit})</summary>
+              <div className="field-row four">
+                {(["top", "bottom", "inside", "outside"] as const).map(
+                  (key) => (
+                    <label key={key}>
+                      {key}
+                      <input
+                        type="number"
+                        step={0.05}
+                        min={0}
+                        value={n(p.setup[key])}
+                        onChange={(e) =>
+                          changeSetup({
+                            [key]: toPoints(Number(e.target.value), unit),
+                          })
+                        }
+                      />
+                    </label>
+                  ),
+                )}
+              </div>
+            </details>
             <label className="check">
               <input
                 type="checkbox"
@@ -466,7 +469,9 @@ export function Inspector({
               />
               Page numbers
             </label>
-            <PageNumberSettings setup={p.setup} change={changeSetup} />
+            {p.setup.numbering && (
+              <PageNumberSettings setup={p.setup} change={changeSetup} />
+            )}
             <label className="check">
               <input
                 type="checkbox"
@@ -477,26 +482,40 @@ export function Inspector({
               />
               Provisional bleed guides
             </label>
-            {page.design && (
+            {
               <section
                 className="background-settings"
                 aria-label="Page background settings"
               >
+                {page.kind === "flow" && (
+                  <p className="hint">
+                    Background settings apply to this chapter’s text pages.
+                  </p>
+                )}
                 <label>
                   Page background
                   <input
                     type="color"
-                    value={page.design.background}
+                    value={background.background}
                     onChange={(e) =>
                       commit((d) => {
-                        d.pages.find((x) => x.id === page.id)!.background =
-                          e.target.value;
+                        editPageBackground(d, page).background = e.target.value;
                       })
                     }
                   />
                 </label>
+                <button
+                  className="secondary"
+                  onClick={() =>
+                    commit((d) => {
+                      applyBackgroundToAll(d, background, "background");
+                    })
+                  }
+                >
+                  Apply background color to all pages
+                </button>
                 <button className="secondary" onClick={backgroundImage}>
-                  {page.design.backgroundImage
+                  {background.backgroundImage
                     ? "Replace background picture"
                     : "Choose background picture"}
                 </button>
@@ -505,12 +524,11 @@ export function Inspector({
                     Use existing artwork
                     <select
                       aria-label="Background artwork"
-                      value={page.design.backgroundImage?.assetId ?? ""}
+                      value={background.backgroundImage?.assetId ?? ""}
                       onChange={(e) =>
                         commit((d) => {
-                          d.pages.find(
-                            (x) => x.id === page.id,
-                          )!.backgroundImage = e.target.value
+                          editPageBackground(d, page).backgroundImage = e.target
+                            .value
                             ? { assetId: e.target.value, fit: "cover" }
                             : undefined;
                         })
@@ -525,18 +543,17 @@ export function Inspector({
                     </select>
                   </label>
                 )}
-                {page.design.backgroundImage && (
+                {background.backgroundImage && (
                   <>
                     <label>
                       Background picture fit
                       <select
-                        value={page.design.backgroundImage.fit}
+                        aria-label="Background picture fit"
+                        value={background.backgroundImage.fit}
                         onChange={(e) =>
                           commit((d) => {
-                            d.pages.find(
-                              (x) => x.id === page.id,
-                            )!.backgroundImage!.fit = e.target.value as
-                              "cover" | "contain";
+                            editPageBackground(d, page).backgroundImage!.fit = e
+                              .target.value as "cover" | "contain";
                           })
                         }
                       >
@@ -545,11 +562,24 @@ export function Inspector({
                       </select>
                     </label>
                     <button
+                      className="secondary"
+                      onClick={() =>
+                        commit((d) => {
+                          applyBackgroundToAll(
+                            d,
+                            background,
+                            "backgroundImage",
+                          );
+                        })
+                      }
+                    >
+                      Apply background picture to all pages
+                    </button>
+                    <button
                       className="text-button"
                       onClick={() =>
                         commit((d) => {
-                          delete d.pages.find((x) => x.id === page.id)!
-                            .backgroundImage;
+                          delete editPageBackground(d, page).backgroundImage;
                         })
                       }
                     >
@@ -558,7 +588,7 @@ export function Inspector({
                   </>
                 )}
               </section>
-            )}
+            }
             {p.style !== "picture" && (
               <>
                 <div className="section-label">MANUSCRIPT TYPE</div>

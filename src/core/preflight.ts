@@ -1,6 +1,7 @@
 import {
   effectivePpi,
   backgroundPlacement,
+  getPageBackground,
   isLeftPage,
   objectName,
   type Project,
@@ -41,7 +42,7 @@ export function preflight(p: Project): Issue[] {
       });
   };
   for (const page of pages) {
-    const background = page.design?.backgroundImage;
+    const background = getPageBackground(p, page).backgroundImage;
     if (background && p.assets[background.assetId]) {
       const asset = p.assets[background.assetId];
       const box = backgroundPlacement(asset, p.setup, background.fit);

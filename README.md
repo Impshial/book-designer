@@ -6,10 +6,10 @@ A standalone Windows book studio built with Tauri 2, React, TypeScript, Konva, a
 
 Built outputs from this workspace:
 
-The latest delivery copies are in `output/windows/`: `Book-Designer-0.1.4-x64-Setup.exe`, `Book-Designer-0.1.4.exe`, and `SETUP.txt`.
+The latest delivery copies are in `output/windows/`: `Book-Designer-0.1.5-x64-Setup.exe`, `Book-Designer-0.1.5.exe`, and `SETUP.txt`.
 
 - `src-tauri/target/release/book-designer.exe` — portable application; requires Microsoft Edge WebView2 Runtime.
-- `src-tauri/target/release/bundle/nsis/Book Designer_0.1.4_x64-setup.exe` — Windows x64 installer. The installer can download WebView2 if absent; authoring and installed export work offline afterward.
+- `src-tauri/target/release/bundle/nsis/Book Designer_0.1.5_x64-setup.exe` — Windows x64 installer. The installer can download WebView2 if absent; authoring and installed export work offline afterward.
 
 The executable embeds the interface, fonts, and export engine. Node, Rust, a browser tab, and a running development server are not needed to use the release app. Builds are unsigned during development.
 
@@ -18,9 +18,11 @@ Start with **Create a new book** and choose Picture Book, Hybrid, or Text Only. 
 ## Working features
 
 - Fixed-size New Book modal with 15 style-specific size presets, descriptive size labels, custom dimensions, converting units, margins, gutter, page numbering, provisional bleed and a compact live preview alongside measurement units. The initial dialog fits without scrolling at the minimum window size. Focus stays in the dialog; native minimize, maximize, close and resizing are disabled until it closes.
-- Picture pages with text, PNG/JPEG originals, rectangles, ellipses, lines, transforms, crops, visibility/locks, stacking, multi-selection, basic groups, center alignment, undo and redo. Page backgrounds accept pictures with fill/fit placement. Page numbers have expandable font, color, size, emphasis, placement, format and starting-number controls.
+- Picture pages with text, PNG/JPEG originals, rectangles, ellipses, lines, transforms, crops, visibility/locks, stacking, multi-selection, basic groups, center alignment, undo and redo. Page backgrounds accept pictures with fill/fit placement. Separate color and picture buttons apply the current setting to every page in one undoable action. Page numbers have expandable font, color, size, emphasis, placement, format and starting-number controls.
 - Resizable side panes remember their widths. Fit Page measures the available canvas and follows pane/window resizing. Facing pages keep stable pairs (1–2, 3–4) while either page can be active. Text names follow the first six words; typography and color controls precede geometry.
-- Write directly on automatically paginated pages, with headings, lists, emphasis, alignment, page breaks and chapter navigation. A separate Print preview is available; there is no split writing/output pane. Picture-book text frames reflow without stretching glyphs during resizing.
+- Write directly on automatically paginated pages, with headings, lists, emphasis, alignment, page breaks and chapter navigation. Formatting controls live in the main header and new manuscripts fit vertically. A separate Print preview is available; there is no split writing/output pane. Picture-book text frames reflow without stretching glyphs during resizing.
+- Artwork library imports do not place objects. Double-click, drag/drop, or choose Add to page from an asset’s context menu. Page thumbnails keep their proportions as the pane resizes.
+- Delete pages from the left pane with confirmation and undo; manuscript page deletion removes the text on that page and reflows the remainder. Margins start collapsed; number formatting appears only while numbering is enabled. Menus switch on hover after one is opened.
 - Hybrid designed pages inserted before chapters, with stable structural placement during reflow.
 - Native save/open/Save As, explicit dirty state, atomic replacement, backup and automatic recovery snapshots for saved books, plus ordered save requests. Recovery never overwrites the last explicit save.
 - Generic RGB draft PDF using the same layout as the editor, real text, embedded fonts, vector shapes and image clips. Completed-file inspection produces a sidecar report.
