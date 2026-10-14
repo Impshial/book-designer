@@ -1,4 +1,10 @@
-import { effectivePpi, type Project } from "./model";
+import {
+  effectivePpi,
+  backgroundPlacement,
+  isLeftPage,
+  objectName,
+  type Project,
+} from "./model";
 import { fonts, fontKey } from "./fonts";
 import { layoutProject, textBoxLines } from "./layout";
 export type Issue = {
@@ -35,6 +41,22 @@ export function preflight(p: Project): Issue[] {
       });
   };
   for (const page of pages) {
+    const background = page.design?.backgroundImage;
+    if (background && p.assets[background.assetId]) {
+      const asset = p.assets[background.assetId];
+      const box = backgroundPlacement(asset, p.setup, background.fit);
+      const ppi =
+        Math.min(asset.width / box.width, asset.height / box.height) * 72;
+      if (ppi < 300)
+        issues.push({
+          id: `ppi-background-${page.id}`,
+          severity: ppi < 150 ? "error" : "warning",
+          title: `${Math.round(ppi)} PPI · Background picture`,
+          detail:
+            "The background resolution is measured at its displayed size, including cropping. 300 PPI is a general design reference.",
+          pageId: page.id,
+        });
+    }
     for (const o of page.design?.objects ?? []) {
       if (o.hidden) continue;
       const target = { pageId: page.id, objectId: o.id };
@@ -48,12 +70,12 @@ export function preflight(p: Project): Issue[] {
             id: `overflow-${o.id}`,
             severity: "error",
             title: "Text box overflows",
-            detail: `“${o.name}” contains text outside its frame. Enlarge it or reduce its type size. The full text is preserved.`,
+            detail: `“${objectName(o)}” contains text outside its frame. Enlarge it or reduce its type size. The full text is preserved.`,
             ...target,
           });
         const s = p.setup,
-          left = page.number % 2 ? s.inside + s.gutter : s.outside,
-          right = page.number % 2 ? s.outside : s.inside + s.gutter;
+          left = isLeftPage(p, page.number) ? s.outside : s.inside + s.gutter,
+          right = isLeftPage(p, page.number) ? s.inside + s.gutter : s.outside;
         const angle = (o.rotation * Math.PI) / 180;
         const corners = [
           [0, 0],
@@ -77,7 +99,7 @@ export function preflight(p: Project): Issue[] {
             id: `safe-${o.id}`,
             severity: "warning",
             title: "Text outside the safe margin",
-            detail: `Review “${o.name}” near the trim or gutter.`,
+            detail: `Review “${objectName(o)}” near the trim or gutter.`,
             ...target,
           });
         const missing = fonts.missing(
@@ -102,7 +124,7 @@ export function preflight(p: Project): Issue[] {
             id: `ppi-${o.id}`,
             severity: ppi < 150 ? "error" : "warning",
             title: `${Math.round(ppi)} PPI · ${ppi < 150 ? "Too low" : "Review image resolution"}`,
-            detail: `“${o.name}” uses cropped source pixels at the placed size. 300 PPI is a general design reference, not a printer approval.`,
+            detail: `“${objectName(o)}” uses cropped source pixels at the placed size. 300 PPI is a general design reference, not a printer approval.`,
             ...target,
           });
         if (!o.alt && !o.decorative)

@@ -10,11 +10,18 @@ import {
   blankPage,
   newObject,
   effectivePpi,
+  backgroundPlacement,
+  defaultNumberStyle,
+  objectName,
   type Asset,
   type RichNode,
 } from "../src/core/model";
 import { fonts, fontFiles, type FontKey } from "../src/core/fonts";
-import { layoutProject, textBoxLines } from "../src/core/layout";
+import {
+  layoutProject,
+  textBoxLines,
+  pageNumberLine,
+} from "../src/core/layout";
 import { History } from "../src/core/history";
 import { preflight } from "../src/core/preflight";
 import { exportPdf } from "../src/core/pdf";
@@ -291,4 +298,88 @@ describe("completed PDF inspection", () => {
     expect(result.report.revision).toBe(0);
     expect(p.revision).toBe(0);
   });
+});
+
+it("legacy projects keep number defaults and reject missing background assets", () => {
+  const p = createProject("picture", "Legacy", "", defaultSetup("picture"), 1);
+  expect(parseProject(serialize(p)).setup.numberStyle).toBeUndefined();
+  const line = pageNumberLine(p, 3);
+  expect(line.runs[0]).toMatchObject({
+    text: "3",
+    size: 9,
+    font: "sans-regular",
+    color: "#59665e",
+  });
+  p.pages[0].backgroundImage = { assetId: "missing", fit: "cover" };
+  expect(() => serialize(p)).toThrow(/Missing background artwork/);
+});
+
+it("background placement preserves proportions for fill and fit and travels with the book", () => {
+  const p = parseProject(
+    readFileSync("samples/picture-book.bookdesigner", "utf8"),
+  );
+  const asset = Object.values(p.assets)[0];
+  // An independent 2:1 source in a square page exercises both directions.
+  const wide = { ...asset, width: 1200, height: 600 };
+  expect(backgroundPlacement(wide, p.setup, "cover")).toEqual({
+    x: -306,
+    y: 0,
+    width: 1224,
+    height: 612,
+  });
+  expect(backgroundPlacement(wide, p.setup, "contain")).toEqual({
+    x: 0,
+    y: 153,
+    width: 612,
+    height: 306,
+  });
+  p.pages[0].backgroundImage = { assetId: asset.id, fit: "cover" };
+  const reopened = parseProject(serialize(p));
+  expect(reopened.pages[0].backgroundImage).toEqual(p.pages[0].backgroundImage);
+  expect(reopened.assets[asset.id].data).toBe(asset.data);
+  expect(
+    preflight(reopened).some((i) => i.id === `ppi-background-${p.pages[0].id}`),
+  ).toBe(true);
+});
+
+it("number formatting uses physical page sides even when the starting number changes", () => {
+  const p = createProject("picture", "Numbers", "", defaultSetup("picture"), 2);
+  p.setup.numberPosition = "outside";
+  p.setup.numberStyle = {
+    ...defaultNumberStyle,
+    format: "ROMAN",
+    start: 8,
+    font: "serif",
+    size: 18,
+    color: "#552244",
+    bold: true,
+    vertical: "top",
+  };
+  const first = pageNumberLine(p, 1),
+    second = pageNumberLine(p, 2);
+  expect(first.runs[0]).toMatchObject({
+    text: "VIII",
+    font: "serif-bold",
+    size: 18,
+    color: "#552244",
+  });
+  expect(second.runs[0].text).toBe("IX");
+  expect(first.x).toBe(p.setup.outside);
+  expect(second.x + second.width).toBeCloseTo(p.setup.width - p.setup.outside);
+  expect(first.y).toBeLessThan(p.setup.top);
+  expect(parseProject(serialize(p)).setup.numberStyle).toEqual(
+    p.setup.numberStyle,
+  );
+  p.setup.numberStyle.format = "roman";
+  expect(pageNumberLine(p, 2).runs[0].text).toBe("ix");
+});
+
+it("text object names are derived from six whitespace-separated words", () => {
+  const o = newObject("text");
+  o.text = "  One\n two three   four five six seven. ";
+  expect(objectName(o)).toBe("One two three four five six…");
+  o.text = "One two three four five six";
+  expect(objectName(o)).toBe(o.text);
+  o.text = "";
+  expect(objectName(o)).toBe("Empty text");
 });

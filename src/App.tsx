@@ -35,6 +35,8 @@ import {
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   blankPage,
+  backgroundPlacement,
+  objectName,
   emptyDoc,
   newObject,
   uid,
@@ -46,16 +48,21 @@ import {
   type RichNode,
 } from "./core/model";
 import { History } from "./core/history";
-import { layoutProject, type LayoutPage } from "./core/layout";
+import { layoutProject, pageNumberLine, type LayoutPage } from "./core/layout";
 import { NewBook, styleNames } from "./components/NewBook";
 import { PageCanvas } from "./components/PageCanvas";
 import { Manuscript } from "./components/Manuscript";
 import { SaveChanges } from "./components/SaveChanges";
 import { Inspector } from "./components/Inspector";
+import { ResizeHandle } from "./components/ResizeHandle";
+import { cssFont } from "./core/fonts";
 import { Publish } from "./components/Publish";
 import * as storage from "./services/storage";
 
 function Thumbnail({ p, page }: { p: Project; page: LayoutPage }) {
+  const background = page.design?.backgroundImage;
+  const asset = background ? p.assets[background.assetId] : undefined;
+  const number = p.setup.numbering ? pageNumberLine(p, page.number) : undefined;
   return (
     <svg viewBox={`0 0 ${p.setup.width} ${p.setup.height}`} aria-hidden="true">
       <rect
@@ -63,6 +70,13 @@ function Thumbnail({ p, page }: { p: Project; page: LayoutPage }) {
         height="100%"
         fill={page.design?.background ?? "white"}
       />
+      {background && asset && (
+        <image
+          href={`data:${asset.mime};base64,${asset.data}`}
+          {...backgroundPlacement(asset, p.setup, background.fit)}
+          preserveAspectRatio="none"
+        />
+      )}
       {page.design?.objects
         .filter((o) => !o.hidden)
         .map((o) => (
@@ -116,15 +130,19 @@ function Thumbnail({ p, page }: { p: Project; page: LayoutPage }) {
           fill="#b6bcb5"
         />
       ))}
-      {p.setup.numbering && (
+      {number && (
         <text
-          x={p.setup.width / 2}
-          y={p.setup.height - 14}
-          textAnchor="middle"
-          fontSize={10}
-          fill="#707a70"
+          x={number.x}
+          y={number.y}
+          fontSize={number.runs[0].size}
+          fill={number.runs[0].color}
+          fontFamily={cssFont(number.runs[0].font)}
+          fontWeight={number.runs[0].font.includes("bold") ? 700 : 400}
+          fontStyle={
+            number.runs[0].font.includes("italic") ? "italic" : "normal"
+          }
         >
-          {page.number}
+          {number.runs[0].text}
         </text>
       )}
     </svg>
@@ -158,6 +176,50 @@ export default function App() {
     [editing, setEditing] = useState<string | null>(null),
     [editText, setEditText] = useState("");
   const [ready, setReady] = useState(false);
+  const savedWidth = (key: string, fallback: number) => {
+    try {
+      const value = Number(localStorage.getItem(key));
+      return Number.isFinite(value) && value >= 160 && value <= 520
+        ? value
+        : fallback;
+    } catch {
+      return fallback;
+    }
+  };
+  const [leftWidth, setLeftWidth] = useState(() =>
+    savedWidth("bd.leftWidth", 204),
+  );
+  const [rightWidth, setRightWidth] = useState(() =>
+    savedWidth("bd.rightWidth", 258),
+  );
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [fitToPage, setFitToPage] = useState(true);
+  const canvasScroll = useRef<HTMLDivElement>(null);
+  const maxLeft = Math.min(420, windowWidth * 0.3),
+    maxRight = Math.min(520, windowWidth * 0.35);
+  const navigationWidth = Math.max(160, Math.min(leftWidth, maxLeft)),
+    inspectorWidth = Math.max(240, Math.min(rightWidth, maxRight));
+  useEffect(() => {
+    const resized = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", resized);
+    return () => window.removeEventListener("resize", resized);
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem("bd.leftWidth", String(leftWidth));
+      localStorage.setItem("bd.rightWidth", String(rightWidth));
+    } catch {
+      /* Workspace preferences are optional. */
+    }
+  }, [leftWidth, rightWidth]);
+  const changeZoom = (value: number) => {
+    setFitToPage(false);
+    setZoom(value);
+  };
+  const toggleFacing = () => {
+    setFacing((value) => !value);
+    setFitToPage(true);
+  };
   const [leavePrompt, setLeavePrompt] = useState<{
     title: string;
     neverSaved: boolean;
@@ -182,6 +244,10 @@ export default function App() {
   latest.current = { p, path, savedRevision };
   const pages = useMemo(() => (p ? layoutProject(p) : []), [p]);
   const page = pages[Math.min(pageIndex, pages.length - 1)];
+  const spreadStart = facing
+    ? Math.floor(Math.min(pageIndex, pages.length - 1) / 2) * 2
+    : pageIndex;
+  const visiblePages = pages.slice(spreadStart, spreadStart + (facing ? 2 : 1));
   const activeChapter =
     p?.chapters.find((c) => c.id === page?.chapterId) ?? p?.chapters[0];
   const commit = (f: (draft: Project) => void, mergeKey = "") => {
@@ -220,6 +286,7 @@ export default function App() {
     setSelection([]);
     setPageIndex(0);
     setFacing(project.setup.facing);
+    setFitToPage(project.style === "picture");
     setTab(project.style === "picture" ? "pages" : "chapters");
     setShowNew(false);
     clipboard.current = [];
@@ -387,15 +454,23 @@ export default function App() {
           : "Book Designer",
       );
   }, [p, path, savedRevision]);
-  function update(changes: { id: string; patch: Partial<BookObject> }[]) {
-    if (!page?.design) return;
+  function updatePage(
+    pageId: string,
+    changes: { id: string; patch: Partial<BookObject> }[],
+  ) {
     commit((d) => {
-      const pg = d.pages.find((x) => x.id === page.id)!;
+      const pg = d.pages.find((x) => x.id === pageId);
       for (const change of changes) {
-        const o = pg.objects.find((x) => x.id === change.id);
-        if (o) Object.assign(o, change.patch);
+        const o = pg?.objects.find((x) => x.id === change.id);
+        if (o) {
+          Object.assign(o, change.patch);
+          if (o.type === "text") o.name = objectName(o);
+        }
       }
     });
+  }
+  function update(changes: { id: string; patch: Partial<BookObject> }[]) {
+    if (page?.design) updatePage(page.id, changes);
   }
   function insert(type: BookObject["type"]) {
     if (!page?.design) {
@@ -410,7 +485,11 @@ export default function App() {
     });
     setSelection([object.id]);
   }
-  async function importImage(file?: File, existing?: Asset) {
+  async function importImage(
+    file?: File,
+    existing?: Asset,
+    background = false,
+  ) {
     if (!p || !page?.design) {
       setToast("Choose a designed page to add artwork.");
       return;
@@ -461,6 +540,18 @@ export default function App() {
         };
       }
       const a = asset;
+      if (latest.current.p?.id !== p.id) return;
+      if (background) {
+        commit((d) => {
+          const pg = d.pages.find((x) => x.id === targetId);
+          if (pg) {
+            d.assets[a.id] = a;
+            pg.backgroundImage = { assetId: a.id, fit: "cover" };
+          }
+        });
+        setSelection([]);
+        return;
+      }
       const o = newObject("image");
       o.name = a.name;
       o.assetId = a.id;
@@ -658,23 +749,56 @@ export default function App() {
       setError(String(e));
     }
   }
-  function fit() {
-    if (!p || !workspace.current) return;
-    const rect = workspace.current.getBoundingClientRect();
-    const availableWidth = rect.width - 80;
+  function applyFit() {
+    if (!p || !canvasScroll.current) return;
+    const scroll = canvasScroll.current,
+      style = getComputedStyle(scroll);
+    const horizontal =
+      parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+    const vertical =
+      parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+    const writingPage = writing && page?.kind === "flow";
+    const count = writingPage ? 1 : Math.max(1, visiblePages.length);
+    const pad = !writingPage && guides ? 36 : 0;
+    const caption = writingPage
+      ? 100
+      : (scroll.querySelector(".page-caption")?.getBoundingClientRect()
+          .height ?? 17);
+    const availableWidth =
+      scroll.clientWidth - horizontal - pad * count - (count - 1) * 3 - 2;
+    const availableHeight = scroll.clientHeight - vertical - pad - caption - 2;
     setZoom(
       Math.max(
-        0.15,
+        0.01,
         Math.min(
-          availableWidth /
-            (p.setup.width *
-              (facing && !(writing && page.kind === "flow") ? 2 : 1)),
-          (rect.height - 150) / p.setup.height,
-          1.5,
+          availableWidth / (p.setup.width * count),
+          availableHeight / p.setup.height,
         ),
       ),
     );
   }
+  function fit() {
+    setFitToPage(true);
+    applyFit();
+    canvasScroll.current?.scrollTo({ left: 0, top: 0 });
+  }
+  useEffect(() => {
+    if (!p || !fitToPage || !canvasScroll.current) return;
+    const observer = new ResizeObserver(() => applyFit());
+    observer.observe(canvasScroll.current);
+    applyFit();
+    return () => observer.disconnect();
+  }, [
+    p?.id,
+    p?.setup.width,
+    p?.setup.height,
+    fitToPage,
+    facing,
+    guides,
+    writing,
+    page?.kind,
+    visiblePages.length,
+  ]);
   useEffect(() => {
     if (ready) {
       if (p?.style !== "picture" && workspace.current)
@@ -707,7 +831,10 @@ export default function App() {
       d.chapters.forEach((c) => visit(c.document));
       d.pages.forEach((pg) =>
         pg.objects.forEach((o) => {
-          if (o.type === "text") o.text = replace(o.text);
+          if (o.type === "text") {
+            o.text = replace(o.text);
+            o.name = objectName(o);
+          }
         }),
       );
     });
@@ -940,7 +1067,7 @@ export default function App() {
       { label: "Fit page", action: fit, disabled: !p },
       {
         label: facing ? "Single page" : "Facing pages",
-        action: () => setFacing(!facing),
+        action: toggleFacing,
       },
       {
         label: writing ? "Print preview" : "Edit pages",
@@ -955,7 +1082,9 @@ export default function App() {
           setWriting(true);
           setGuides(true);
           setFacing(false);
-          setZoom(0.8);
+          setLeftWidth(204);
+          setRightWidth(258);
+          setFitToPage(true);
         },
       },
     ],
@@ -1006,8 +1135,19 @@ export default function App() {
     ],
   };
   const editingObject = page?.design?.objects.find((o) => o.id === editing);
-  const renderPage = (pg: LayoutPage, interactive = true) => (
-    <div className="page-wrap" key={pg.id}>
+  const renderPage = (pg: LayoutPage) => (
+    <div
+      className={`page-wrap ${pg.id === page.id ? "active" : ""}`}
+      key={pg.id}
+      data-page-number={pg.number}
+      aria-current={pg.id === page.id ? "page" : undefined}
+      onMouseDownCapture={() => {
+        if (pg.id !== page.id) {
+          setPageIndex(pages.findIndex((x) => x.id === pg.id));
+          setSelection([]);
+        }
+      }}
+    >
       <div className="page-caption">
         <span>{pg.kind === "design" ? "DESIGNED PAGE" : pg.chapterTitle}</span>
         <span>{String(pg.number).padStart(2, "0")}</span>
@@ -1017,9 +1157,12 @@ export default function App() {
         page={pg}
         zoom={zoom}
         guides={guides}
-        selection={interactive ? selection : []}
-        onSelect={setSelection}
-        onUpdate={update}
+        selection={pg.id === page.id ? selection : []}
+        onSelect={(ids) => {
+          setPageIndex(pages.findIndex((x) => x.id === pg.id));
+          setSelection(ids);
+        }}
+        onUpdate={(changes) => updatePage(pg.id, changes)}
         onEdit={(id) => {
           const o = pg.design?.objects.find((o) => o.id === id);
           if (o) {
@@ -1027,7 +1170,7 @@ export default function App() {
             setEditText(o.text);
           }
         }}
-        interactive={interactive && !pan}
+        interactive={!pan}
       />
     </div>
   );
@@ -1078,7 +1221,7 @@ export default function App() {
           ))}
         </nav>
         <div className="header-right">
-          <span className="version">EARLY ACCESS · 0.1.3</span>
+          <span className="version">EARLY ACCESS · 0.1.4</span>
           {p && (
             <button
               className="primary small"
@@ -1190,10 +1333,7 @@ export default function App() {
               >
                 {guides ? <Check size={14} /> : null}Guides
               </button>
-              <button
-                className="text-button"
-                onClick={() => setFacing(!facing)}
-              >
+              <button className="text-button" onClick={toggleFacing}>
                 {facing ? "Facing pages" : "Single page"}
               </button>
               <span className="divider" />
@@ -1234,12 +1374,7 @@ export default function App() {
                 ],
                 [Square, "Insert shape", () => insert("rect"), !page?.design],
                 [Minus, "Insert line", () => insert("line"), !page?.design],
-                [
-                  ZoomIn,
-                  "Zoom in",
-                  () => setZoom(Math.min(2, zoom + 0.1)),
-                  false,
-                ],
+                [ZoomIn, "Zoom in", () => changeZoom(zoom + 0.1), false],
                 [Hand, "Hand / pan", () => setPan(!pan), false],
               ].map(([Icon, label, action, disabled], i) => {
                 const I = Icon as typeof Type;
@@ -1267,7 +1402,7 @@ export default function App() {
               </div>
             </aside>
             {left && (
-              <aside className="navigation">
+              <aside className="navigation" style={{ width: navigationWidth }}>
                 <div className="nav-tabs">
                   {["pages", "chapters", "assets"].map((t) => (
                     <button
@@ -1404,6 +1539,15 @@ export default function App() {
                 </div>
               </aside>
             )}
+            {left && (
+              <ResizeHandle
+                side="left"
+                value={navigationWidth}
+                min={160}
+                max={maxLeft}
+                onChange={setLeftWidth}
+              />
+            )}
             <main
               className="canvas-workspace"
               ref={workspace}
@@ -1446,6 +1590,7 @@ export default function App() {
               </div>
               <div
                 className={`canvas-scroll ${pan ? "panning" : ""}`}
+                ref={canvasScroll}
                 onMouseDown={(e) => {
                   if (!pan || e.button !== 0) return;
                   const scroll = e.currentTarget,
@@ -1503,10 +1648,7 @@ export default function App() {
                     )}
                   {!(writing && page.kind === "flow") && (
                     <div className={`spread ${facing ? "facing" : ""}`}>
-                      {renderPage(page)}
-                      {facing &&
-                        pages[pageIndex + 1] &&
-                        renderPage(pages[pageIndex + 1], false)}
+                      {visiblePages.map((pg) => renderPage(pg))}
                     </div>
                   )}
                 </div>
@@ -1523,7 +1665,20 @@ export default function App() {
               </div>
             </main>
             {right && (
+              <ResizeHandle
+                side="right"
+                value={inspectorWidth}
+                min={240}
+                max={maxRight}
+                onChange={setRightWidth}
+              />
+            )}
+            {right && (
               <Inspector
+                width={inspectorWidth}
+                backgroundImage={() =>
+                  void importImage(undefined, undefined, true)
+                }
                 p={p}
                 page={page}
                 selection={selection}
@@ -1581,7 +1736,7 @@ export default function App() {
             <div className="zoom-control">
               <button
                 aria-label="Zoom out"
-                onClick={() => setZoom(Math.max(0.15, zoom - 0.1))}
+                onClick={() => changeZoom(Math.max(0.01, zoom - 0.1))}
               >
                 <Minus size={14} />
               </button>
@@ -1591,11 +1746,11 @@ export default function App() {
                 min={15}
                 max={200}
                 value={zoom * 100}
-                onChange={(e) => setZoom(Number(e.target.value) / 100)}
+                onChange={(e) => changeZoom(Number(e.target.value) / 100)}
               />
               <button
                 aria-label="Zoom in"
-                onClick={() => setZoom(Math.min(2, zoom + 0.1))}
+                onClick={() => changeZoom(zoom + 0.1)}
               >
                 <Plus size={14} />
               </button>
@@ -1746,7 +1901,7 @@ export default function App() {
                 <X size={18} />
               </button>
             </header>
-            <p>An offline book studio. Version 0.1.3.</p>
+            <p>An offline book studio. Version 0.1.4.</p>
             <p>
               Ctrl+N new · Ctrl+O open · Ctrl+S save
               <br />

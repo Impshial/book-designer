@@ -149,7 +149,6 @@ export function NewBook({
               <label>
                 Book title
                 <input
-                  autoFocus
                   value={title}
                   maxLength={240}
                   onChange={(e) => setTitle(e.target.value)}
@@ -157,7 +156,9 @@ export function NewBook({
                 />
               </label>
               <label>
-                Author <span className="muted">(optional)</span>
+                <span>
+                  Author <span className="muted">(optional)</span>
+                </span>
                 <input
                   value={author}
                   onChange={(e) => setAuthor(e.target.value)}
@@ -189,51 +190,53 @@ export function NewBook({
                   <option value="custom">Custom size</option>
                 </select>
               </label>
-              <label>
-                Measurement units
-                <select
-                  value={unit}
-                  onChange={(e) => set({ unit: e.target.value as Unit })}
-                >
-                  <option value="in">Inches (in)</option>
-                  <option value="mm">Millimeters (mm)</option>
-                  <option value="cm">Centimeters (cm)</option>
-                </select>
-              </label>
             </div>
-            {sizePreset === "custom" && (
-              <div className="field-row dimensions">
-                <label>
-                  Width ({unit})
-                  <input
-                    aria-label="Page width"
-                    type="number"
-                    min="0.1"
-                    step="0.1"
-                    value={n(setup.width)}
-                    onChange={(e) =>
-                      set({ width: toPoints(Number(e.target.value), unit) })
-                    }
-                  />
-                </label>
-                <span>×</span>
-                <label>
-                  Height ({unit})
-                  <input
-                    aria-label="Page height"
-                    type="number"
-                    min="0.1"
-                    step="0.1"
-                    value={n(setup.height)}
-                    onChange={(e) =>
-                      set({ height: toPoints(Number(e.target.value), unit) })
-                    }
-                  />
-                </label>
-              </div>
-            )}
             <div className="new-details">
               <div className="new-page-settings">
+                <label className="units-field">
+                  Measurement units
+                  <select
+                    value={unit}
+                    onChange={(e) => set({ unit: e.target.value as Unit })}
+                  >
+                    <option value="in">Inches (in)</option>
+                    <option value="mm">Millimeters (mm)</option>
+                    <option value="cm">Centimeters (cm)</option>
+                  </select>
+                </label>
+                {sizePreset === "custom" && (
+                  <div className="field-row dimensions">
+                    <label>
+                      Width ({unit})
+                      <input
+                        aria-label="Page width"
+                        type="number"
+                        min="0.1"
+                        step="0.1"
+                        value={n(setup.width)}
+                        onChange={(e) =>
+                          set({ width: toPoints(Number(e.target.value), unit) })
+                        }
+                      />
+                    </label>
+                    <span>×</span>
+                    <label>
+                      Height ({unit})
+                      <input
+                        aria-label="Page height"
+                        type="number"
+                        min="0.1"
+                        step="0.1"
+                        value={n(setup.height)}
+                        onChange={(e) =>
+                          set({
+                            height: toPoints(Number(e.target.value), unit),
+                          })
+                        }
+                      />
+                    </label>
+                  </div>
+                )}
                 <div className="field-row">
                   <label>
                     Starting layout
@@ -381,11 +384,7 @@ export function NewBook({
                     className="mini-page"
                     style={{
                       aspectRatio: `${Math.max(setup.width, 1)} / ${Math.max(setup.height, 1)}`,
-                      width: Math.min(
-                        150,
-                        (150 * Math.max(setup.width, 1)) /
-                          Math.max(setup.height, 1),
-                      ),
+                      width: `calc(var(--mini-size) * ${Math.min(1, Math.max(setup.width, 1) / Math.max(setup.height, 1))})`,
                     }}
                   >
                     <div

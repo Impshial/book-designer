@@ -12,6 +12,27 @@ export const fromPoints = (n: number, unit: Unit) =>
 const finite = z.number().finite();
 const positive = finite.positive();
 const color = z.string().regex(/^#[0-9a-fA-F]{6}$/);
+export const NumberStyleSchema = z.object({
+  font: z.enum(["serif", "sans"]),
+  size: positive.min(6).max(72),
+  color,
+  bold: z.boolean(),
+  italic: z.boolean(),
+  format: z.enum(["decimal", "roman", "ROMAN"]),
+  start: z.number().int().min(1).max(9999),
+  vertical: z.enum(["top", "bottom"]),
+});
+export type NumberStyle = z.infer<typeof NumberStyleSchema>;
+export const defaultNumberStyle: NumberStyle = {
+  font: "sans",
+  size: 9,
+  color: "#59665e",
+  bold: false,
+  italic: false,
+  format: "decimal",
+  start: 1,
+  vertical: "bottom",
+};
 export const SetupSchema = z
   .object({
     width: positive.max(14400),
@@ -25,6 +46,7 @@ export const SetupSchema = z
     bleed: finite.min(0).max(72),
     numbering: z.boolean(),
     numberPosition: z.enum(["center", "outside"]),
+    numberStyle: NumberStyleSchema.optional(),
     facing: z.boolean(),
   })
   .refine(
@@ -82,6 +104,9 @@ export const PageSchema = z.object({
   id: z.string(),
   name: z.string(),
   background: color,
+  backgroundImage: z
+    .object({ assetId: z.string(), fit: z.enum(["cover", "contain"]) })
+    .optional(),
   objects: z.array(ObjectSchema),
   readingOrder: z.array(z.string()),
 });
@@ -218,15 +243,23 @@ export const ProjectSchema = z
     for (const [id, a] of Object.entries(p.assets))
       if (id !== a.id)
         ctx.addIssue({ code: "custom", message: "Asset key mismatch." });
-    for (const page of p.pages)
+    for (const page of p.pages) {
+      if (page.backgroundImage && !p.assets[page.backgroundImage.assetId])
+        ctx.addIssue({
+          code: "custom",
+          message: `Missing background artwork for ${page.name}.`,
+        });
       for (const o of page.objects)
         if (o.type === "image" && (!o.assetId || !p.assets[o.assetId]))
           ctx.addIssue({
             code: "custom",
             message: `Missing artwork for ${o.name}.`,
           });
+    }
   });
 export type Project = z.infer<typeof ProjectSchema>;
+export const isLeftPage = (p: Project, number: number) =>
+  p.style === "picture" ? number % 2 === 1 : number % 2 === 0;
 export const defaultSetup = (style: BookStyle): PageSetup => ({
   width: style === "picture" ? 612 : 432,
   height: style === "picture" ? 612 : 648,
@@ -300,7 +333,7 @@ export function newObject(
   return {
     id: uid(),
     name: {
-      text: "Text box",
+      text: "Your story starts here.",
       image: "Illustration",
       rect: "Rectangle",
       ellipse: "Ellipse",
@@ -389,3 +422,30 @@ export const effectivePpi = (o: BookObject, a: Asset) =>
     (a.width * o.crop.width) / (o.width / 72),
     (a.height * o.crop.height) / (o.height / 72),
   );
+
+export function objectName(o: BookObject) {
+  if (o.type !== "text") return o.name;
+  const words = o.text.trim().split(/\s+/u).filter(Boolean);
+  return words.length
+    ? words.slice(0, 6).join(" ") + (words.length > 6 ? "…" : "")
+    : "Empty text";
+}
+
+export function backgroundPlacement(
+  asset: Asset,
+  setup: PageSetup,
+  fit: "cover" | "contain",
+) {
+  const scale = (fit === "cover" ? Math.max : Math.min)(
+    setup.width / asset.width,
+    setup.height / asset.height,
+  );
+  const width = asset.width * scale,
+    height = asset.height * scale;
+  return {
+    x: (setup.width - width) / 2,
+    y: (setup.height - height) / 2,
+    width,
+    height,
+  };
+}

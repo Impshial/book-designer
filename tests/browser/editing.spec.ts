@@ -258,7 +258,7 @@ test("text stays at the same scale during a frame resize and one undo restores g
   expect((await state()).height).toBeGreaterThan(before.height + 100);
   await page.keyboard.press("Control+z");
   await page
-    .getByRole("button", { name: "Text box", exact: false })
+    .getByRole("button", { name: "Your story starts here.", exact: false })
     .first()
     .click();
   expect((await state()).height).toBeCloseTo(before.height, 5);

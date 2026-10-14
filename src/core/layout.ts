@@ -1,5 +1,7 @@
 import { fonts, fontKey, type FontKey, type Fonts } from "./fonts";
 import {
+  defaultNumberStyle,
+  isLeftPage,
   type Project,
   type RichNode,
   type BookObject,
@@ -39,23 +41,61 @@ export type LayoutPage = {
   number: number;
 };
 export function pageNumberLine(p: Project, number: number): TextLine {
-  const text = String(number),
-    size = 9,
-    font: FontKey = "sans-regular",
+  const style = p.setup.numberStyle ?? defaultNumberStyle;
+  const value = number + style.start - 1;
+  let text = String(value);
+  if (style.format !== "decimal") {
+    let remaining = value;
+    text = "";
+    for (const [amount, symbol] of [
+      [1000, "M"],
+      [900, "CM"],
+      [500, "D"],
+      [400, "CD"],
+      [100, "C"],
+      [90, "XC"],
+      [50, "L"],
+      [40, "XL"],
+      [10, "X"],
+      [9, "IX"],
+      [5, "V"],
+      [4, "IV"],
+      [1, "I"],
+    ] as const)
+      while (remaining >= amount) {
+        text += symbol;
+        remaining -= amount;
+      }
+    if (style.format === "roman") text = text.toLowerCase();
+  }
+  const size = style.size,
+    font = fontKey(style.font, style.bold, style.italic),
     width = fonts.measure(text, font, size);
+  const onLeft = isLeftPage(p, number);
   const x =
     p.setup.numberPosition === "center"
       ? (p.setup.width - width) / 2
-      : number % 2
-        ? p.setup.width - p.setup.outside - width
-        : p.setup.outside;
+      : onLeft
+        ? p.setup.outside
+        : p.setup.width - p.setup.outside - width;
+  const metrics = {
+    ascent: fonts.ascent(font, size),
+    descent: fonts.descent(font, size),
+  };
+  const y =
+    style.vertical === "top"
+      ? Math.max(
+          metrics.ascent,
+          p.setup.top / 2 + (metrics.ascent + metrics.descent) / 2,
+        )
+      : p.setup.height - Math.max(-metrics.descent, p.setup.bottom / 2);
   return {
-    x,
-    y: p.setup.height - Math.max(10, p.setup.bottom / 2),
+    x: Math.max(0, Math.min(p.setup.width - width, x)),
+    y,
     width,
-    height: 12,
+    height: size * 1.3,
     blockId: `number-${number}`,
-    runs: [{ text, font, size, color: "#59665e", x: 0, width }],
+    runs: [{ text, font, size, color: style.color, x: 0, width }],
   };
 }
 export function wrapRuns(

@@ -12,7 +12,12 @@ import {
   Text,
 } from "react-konva";
 import Konva from "konva";
-import { type BookObject, type Project } from "../core/model";
+import {
+  backgroundPlacement,
+  isLeftPage,
+  type BookObject,
+  type Project,
+} from "../core/model";
 import {
   type LayoutPage,
   type TextLine,
@@ -70,6 +75,30 @@ function Artwork({ o, p }: { o: BookObject; p: Project }) {
         width: o.crop.width * asset.width,
         height: o.crop.height * asset.height,
       }}
+    />
+  );
+}
+function PageBackground({ p, page }: { p: Project; page: LayoutPage }) {
+  const background = page.design?.backgroundImage;
+  const asset = background ? p.assets[background.assetId] : undefined;
+  const [image, setImage] = useState<HTMLImageElement>();
+  useEffect(() => {
+    setImage(undefined);
+    if (!asset) return;
+    const img = new Image();
+    img.onload = () => setImage(img);
+    img.src = `data:${asset.mime};base64,${asset.data}`;
+    return () => {
+      img.onload = null;
+    };
+  }, [asset?.data]);
+  if (!image || !asset || !background) return null;
+  return (
+    <KImage
+      name="page-background"
+      image={image}
+      {...backgroundPlacement(asset, p.setup, background.fit)}
+      listening={false}
     />
   );
 }
@@ -190,6 +219,7 @@ export function PageCanvas({
             shadowOffsetY={3 / zoom}
           />
           <Group clipX={0} clipY={0} clipWidth={s.width} clipHeight={s.height}>
+            <PageBackground p={p} page={page} />
             <LineShape lines={page.lines} />
             {objects
               .filter((o) => !o.hidden)
@@ -337,7 +367,7 @@ export function PageCanvas({
                 listening={false}
               />
               <Rect
-                x={page.number % 2 ? s.inside + s.gutter : s.outside}
+                x={isLeftPage(p, page.number) ? s.outside : s.inside + s.gutter}
                 y={s.top}
                 width={s.width - s.inside - s.outside - s.gutter}
                 height={s.height - s.top - s.bottom}

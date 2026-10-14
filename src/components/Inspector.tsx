@@ -1,3 +1,4 @@
+import { PageNumberSettings } from "./PageNumberSettings";
 import {
   ArrowUp,
   ArrowDown,
@@ -10,6 +11,7 @@ import {
 } from "lucide-react";
 import {
   effectivePpi,
+  objectName,
   fromPoints,
   toPoints,
   SetupSchema,
@@ -27,6 +29,8 @@ export function Inspector({
   select,
   duplicate,
   remove,
+  width,
+  backgroundImage,
 }: {
   p: Project;
   page: LayoutPage;
@@ -36,6 +40,8 @@ export function Inspector({
   select: (ids: string[]) => void;
   duplicate: () => void;
   remove: () => void;
+  width: number;
+  backgroundImage: () => void;
 }) {
   const o = page.design?.objects.find((o) => o.id === selection[0]);
   const unit = p.setup.unit;
@@ -85,7 +91,7 @@ export function Inspector({
       pg.objects.splice(j, 0, item);
     });
   return (
-    <aside className="inspector">
+    <aside className="inspector" style={{ width }}>
       <div className="panel-title">
         {o ? "Object properties" : "Book & page"}
         <span className="muted">{o?.type ?? "Settings"}</span>
@@ -96,46 +102,11 @@ export function Inspector({
             <label>
               Object name
               <input
-                value={o.name}
+                value={objectName(o)}
+                readOnly={o.type === "text"}
                 onChange={(e) => set({ name: e.target.value })}
               />
             </label>
-            <div className="section-label">POSITION & SIZE</div>
-            <div className="field-row">
-              {field("X", "x")}
-              {field("Y", "y")}
-            </div>
-            <div className="field-row">
-              {field("Width", "width")}
-              {field("Height", "height")}
-            </div>
-            <div className="field-row">
-              <label>
-                Rotation (°)
-                <input
-                  type="number"
-                  value={Number(o.rotation.toFixed(2))}
-                  disabled={o.locked}
-                  onChange={(e) => set({ rotation: Number(e.target.value) })}
-                />
-              </label>
-              <label>
-                Opacity (%)
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={Math.round(o.opacity * 100)}
-                  onChange={(e) =>
-                    set({
-                      opacity:
-                        Math.max(0, Math.min(100, Number(e.target.value))) /
-                        100,
-                    })
-                  }
-                />
-              </label>
-            </div>
             {o.type === "text" && (
               <>
                 <div className="section-label">TYPOGRAPHY</div>
@@ -227,6 +198,74 @@ export function Inspector({
                 </p>
               </>
             )}
+            {o.type !== "image" && (
+              <div className="field-row">
+                <label>
+                  {o.type === "text" ? "Text color" : "Fill"}
+                  <input
+                    type="color"
+                    value={o.fill}
+                    onChange={(e) => set({ fill: e.target.value })}
+                  />
+                </label>
+                <label>
+                  Stroke
+                  <input
+                    type="color"
+                    value={o.stroke}
+                    onChange={(e) => set({ stroke: e.target.value })}
+                  />
+                </label>
+                <label>
+                  Width
+                  <input
+                    type="number"
+                    min={0}
+                    max={30}
+                    value={o.strokeWidth}
+                    onChange={(e) =>
+                      set({ strokeWidth: Math.max(0, Number(e.target.value)) })
+                    }
+                  />
+                </label>
+              </div>
+            )}
+            <div className="section-label">POSITION & SIZE</div>
+            <div className="field-row">
+              {field("X", "x")}
+              {field("Y", "y")}
+            </div>
+            <div className="field-row">
+              {field("Width", "width")}
+              {field("Height", "height")}
+            </div>
+            <div className="field-row">
+              <label>
+                Rotation (°)
+                <input
+                  type="number"
+                  value={Number(o.rotation.toFixed(2))}
+                  disabled={o.locked}
+                  onChange={(e) => set({ rotation: Number(e.target.value) })}
+                />
+              </label>
+              <label>
+                Opacity (%)
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={Math.round(o.opacity * 100)}
+                  onChange={(e) =>
+                    set({
+                      opacity:
+                        Math.max(0, Math.min(100, Number(e.target.value))) /
+                        100,
+                    })
+                  }
+                />
+              </label>
+            </div>
             {o.type === "image" && o.assetId && (
               <>
                 <div className="section-label">ILLUSTRATION</div>
@@ -317,38 +356,6 @@ export function Inspector({
                   Decorative artwork
                 </label>
               </>
-            )}
-            {o.type !== "image" && (
-              <div className="field-row">
-                <label>
-                  {o.type === "text" ? "Text color" : "Fill"}
-                  <input
-                    type="color"
-                    value={o.fill}
-                    onChange={(e) => set({ fill: e.target.value })}
-                  />
-                </label>
-                <label>
-                  Stroke
-                  <input
-                    type="color"
-                    value={o.stroke}
-                    onChange={(e) => set({ stroke: e.target.value })}
-                  />
-                </label>
-                <label>
-                  Width
-                  <input
-                    type="number"
-                    min={0}
-                    max={30}
-                    value={o.strokeWidth}
-                    onChange={(e) =>
-                      set({ strokeWidth: Math.max(0, Number(e.target.value)) })
-                    }
-                  />
-                </label>
-              </div>
             )}
             <div className="button-row">
               <button title="Bring forward" onClick={() => reorder(o.id, 1)}>
@@ -459,6 +466,7 @@ export function Inspector({
               />
               Page numbers
             </label>
+            <PageNumberSettings setup={p.setup} change={changeSetup} />
             <label className="check">
               <input
                 type="checkbox"
@@ -470,19 +478,86 @@ export function Inspector({
               Provisional bleed guides
             </label>
             {page.design && (
-              <label>
-                Page background
-                <input
-                  type="color"
-                  value={page.design.background}
-                  onChange={(e) =>
-                    commit((d) => {
-                      d.pages.find((x) => x.id === page.id)!.background =
-                        e.target.value;
-                    })
-                  }
-                />
-              </label>
+              <section
+                className="background-settings"
+                aria-label="Page background settings"
+              >
+                <label>
+                  Page background
+                  <input
+                    type="color"
+                    value={page.design.background}
+                    onChange={(e) =>
+                      commit((d) => {
+                        d.pages.find((x) => x.id === page.id)!.background =
+                          e.target.value;
+                      })
+                    }
+                  />
+                </label>
+                <button className="secondary" onClick={backgroundImage}>
+                  {page.design.backgroundImage
+                    ? "Replace background picture"
+                    : "Choose background picture"}
+                </button>
+                {!!Object.keys(p.assets).length && (
+                  <label>
+                    Use existing artwork
+                    <select
+                      aria-label="Background artwork"
+                      value={page.design.backgroundImage?.assetId ?? ""}
+                      onChange={(e) =>
+                        commit((d) => {
+                          d.pages.find(
+                            (x) => x.id === page.id,
+                          )!.backgroundImage = e.target.value
+                            ? { assetId: e.target.value, fit: "cover" }
+                            : undefined;
+                        })
+                      }
+                    >
+                      <option value="">Color only</option>
+                      {Object.values(p.assets).map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                {page.design.backgroundImage && (
+                  <>
+                    <label>
+                      Background picture fit
+                      <select
+                        value={page.design.backgroundImage.fit}
+                        onChange={(e) =>
+                          commit((d) => {
+                            d.pages.find(
+                              (x) => x.id === page.id,
+                            )!.backgroundImage!.fit = e.target.value as
+                              "cover" | "contain";
+                          })
+                        }
+                      >
+                        <option value="cover">Fill page (crop edges)</option>
+                        <option value="contain">Fit whole picture</option>
+                      </select>
+                    </label>
+                    <button
+                      className="text-button"
+                      onClick={() =>
+                        commit((d) => {
+                          delete d.pages.find((x) => x.id === page.id)!
+                            .backgroundImage;
+                        })
+                      }
+                    >
+                      Remove background picture
+                    </button>
+                  </>
+                )}
+              </section>
             )}
             {p.style !== "picture" && (
               <>
@@ -568,11 +643,11 @@ export function Inspector({
                           ? "▧"
                           : "◇"}
                     </span>
-                    {item.name}
+                    {objectName(item)}
                   </button>
                   <button
                     className="icon"
-                    aria-label={`${item.hidden ? "Show" : "Hide"} ${item.name}`}
+                    aria-label={`${item.hidden ? "Show" : "Hide"} ${objectName(item)}`}
                     onClick={() =>
                       update([{ id: item.id, patch: { hidden: !item.hidden } }])
                     }
@@ -581,7 +656,7 @@ export function Inspector({
                   </button>
                   <button
                     className="icon"
-                    aria-label={`${item.locked ? "Unlock" : "Lock"} ${item.name}`}
+                    aria-label={`${item.locked ? "Unlock" : "Lock"} ${objectName(item)}`}
                     onClick={() =>
                       update([{ id: item.id, patch: { locked: !item.locked } }])
                     }

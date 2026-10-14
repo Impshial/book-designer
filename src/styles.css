@@ -436,6 +436,29 @@ h3 {
   flex: 1;
   min-height: 0;
 }
+.pane-resizer {
+  flex: 0 0 6px;
+  cursor: col-resize;
+  touch-action: none;
+  background: #e3e6df;
+  position: relative;
+  z-index: 2;
+}
+.pane-resizer:hover,
+.pane-resizer:focus-visible {
+  background: #90b2a2;
+  outline: none;
+}
+.pane-resizer::after {
+  content: "";
+  position: absolute;
+  height: 34px;
+  width: 2px;
+  left: 2px;
+  top: calc(50% - 17px);
+  background: #8b9e90;
+  border-radius: 2px;
+}
 .tool-strip {
   width: 51px;
   flex: none;
@@ -693,6 +716,10 @@ h3 {
   letter-spacing: 1.2px;
   padding: 0 19px 6px;
 }
+.page-wrap.active .page-caption {
+  color: var(--green);
+  font-weight: 700;
+}
 .page-canvas {
   line-height: 0;
 }
@@ -752,6 +779,28 @@ h3 {
 .inspector .field-row.four {
   display: grid;
   grid-template-columns: 1fr 1fr;
+}
+.number-settings {
+  border-block: 1px solid var(--line);
+  padding: 12px 0;
+  margin-bottom: 16px;
+}
+.number-settings summary {
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+}
+.number-settings[open] summary {
+  margin-bottom: 16px;
+}
+.background-settings > button {
+  margin-bottom: 12px;
+  white-space: normal;
+}
+.editor-page-numbers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
 .book-meta {
   padding-bottom: 18px;
@@ -1079,6 +1128,7 @@ h3 {
   color: #8f9984;
 }
 .new-book {
+  --mini-size: 90px;
   width: 960px;
   height: min(900px, calc(100dvh - 44px));
   max-width: calc(100vw - 44px);
@@ -1109,13 +1159,20 @@ h3 {
 }
 .new-details {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 270px;
+  grid-template-columns: minmax(0, 1fr) 240px;
   gap: 24px;
-  margin-top: 22px;
+  margin-top: 0;
   align-items: start;
 }
 .new-page-settings {
   min-width: 0;
+}
+.units-field {
+  width: min(200px, 100%);
+  margin-bottom: 15px;
+}
+.new-page-settings .dimensions {
+  margin-bottom: 15px;
 }
 .field-label {
   font-size: 11px;
@@ -1226,7 +1283,7 @@ h3 {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 18px;
+  padding: 12px;
   text-align: center;
   position: relative;
   overflow-y: auto;
@@ -1236,7 +1293,7 @@ h3 {
   letter-spacing: 1.6px;
 }
 .mini-area {
-  height: 175px;
+  height: 110px;
   width: 100%;
   display: flex;
   align-items: center;
@@ -1272,7 +1329,7 @@ h3 {
   right: 8%;
 }
 .new-preview > strong {
-  font: 18px "Book Serif";
+  font: 16px "Book Serif";
   color: #506447;
   line-height: 1.4;
   margin-top: 4px;
@@ -1282,7 +1339,7 @@ h3 {
 .new-preview > p {
   font-size: 9px;
   color: #9aa58d;
-  margin-top: 9px;
+  margin-top: 6px;
 }
 .guide-key {
   display: flex;
@@ -1291,7 +1348,7 @@ h3 {
   gap: 12px;
   font-size: 8px;
   color: #87977b;
-  margin-top: 14px;
+  margin-top: 10px;
 }
 .guide-key > span {
   display: flex;
@@ -1633,4 +1690,34 @@ h3 {
 }
 .panning .page-canvas {
   pointer-events: none;
+}
+
+@media (max-height: 720px) {
+  .new-book .units-field {
+    margin-bottom: 10px;
+  }
+  .new-book .new-page-settings .field-row {
+    margin-bottom: 8px;
+  }
+  .new-book .new-page-settings .disclosure {
+    margin: 0;
+    padding: 6px 0;
+  }
+  .new-book {
+    --mini-size: 60px;
+  }
+  .new-book .mini-area {
+    height: 72px;
+    padding: 6px;
+  }
+  .new-book .style-choice small {
+    display: none;
+  }
+  .new-book .style-choices {
+    margin-bottom: 12px;
+  }
+  .new-book .new-settings {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
 }

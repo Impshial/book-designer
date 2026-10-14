@@ -30,7 +30,7 @@ export function useModal(
     (
       element.querySelector<HTMLElement>("input:not([readonly])") ??
       focusable()[0]
-    )?.focus();
+    )?.focus({ preventScroll: true });
     const trap = (event: KeyboardEvent) => {
       if (event.key !== "Tab") return;
       const items = focusable();
@@ -84,7 +84,7 @@ export function useModal(
       siblings.forEach((s, i) => {
         s.inert = previousInert[i];
       });
-      previousFocus?.focus();
+      previousFocus?.focus({ preventScroll: true });
       if (lockWindow && native)
         windowQueue = windowQueue
           .then(() => restore?.())

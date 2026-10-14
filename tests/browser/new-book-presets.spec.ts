@@ -95,11 +95,33 @@ test("custom size, simplified content and full-width controls work in the modal"
       name: /Browse|Landscape|Portrait|Save later/,
     }),
   ).toHaveCount(0);
+  for (const viewport of [
+    { width: 1366, height: 768 },
+    { width: 960, height: 640 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await expect
+      .poll(() =>
+        page.locator(".new-settings").evaluate((el) => ({
+          top: el.scrollTop,
+          overflow: el.scrollHeight > el.clientHeight,
+        })),
+      )
+      .toEqual({ top: 0, overflow: false });
+  }
+  await page.setViewportSize({ width: 1100, height: 960 });
   const sizeBox = (await page.getByLabel("Size preset").boundingBox())!;
   const unitsBox = (await page.getByLabel("Measurement units").boundingBox())!;
   const formBox = (await page.locator(".new-settings").boundingBox())!;
   expect(sizeBox.width).toBeGreaterThan(formBox.width - 80);
   expect(unitsBox.y).toBeGreaterThan(sizeBox.y + sizeBox.height);
+  expect(unitsBox.width).toBeLessThanOrEqual(220);
+  const previewBox = (await page.locator(".new-preview").boundingBox())!;
+  expect(previewBox.y).toBeCloseTo(
+    (await page.locator(".units-field").boundingBox())!.y,
+    2,
+  );
+  expect(previewBox.x).toBeGreaterThan(unitsBox.x + unitsBox.width);
   const bounds = await dialog.boundingBox();
   await page.getByLabel("Size preset").selectOption("custom");
   expect(await dialog.boundingBox()).toEqual(bounds);

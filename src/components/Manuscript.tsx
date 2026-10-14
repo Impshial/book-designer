@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { type Project, type RichNode } from "../core/model";
 import { pageNumberLine, type LayoutPage } from "../core/layout";
+import { cssFont } from "../core/fonts";
 import { pageEditing, PAGE_GAP } from "./pageEditing";
 export function Manuscript({
   document,
@@ -265,12 +266,29 @@ export function Manuscript({
                   />
                 )}
                 {project.setup.numbering && (
-                  <span
-                    className="editor-page-number"
-                    style={{ left: number.x, top: number.y - 9 }}
+                  <svg
+                    className="editor-page-numbers"
+                    width={project.setup.width}
+                    height={project.setup.height}
                   >
-                    {pg.number}
-                  </span>
+                    <text
+                      x={number.x}
+                      y={number.y}
+                      fontFamily={cssFont(number.runs[0].font)}
+                      fontSize={number.runs[0].size}
+                      fontWeight={
+                        number.runs[0].font.includes("bold") ? 700 : 400
+                      }
+                      fontStyle={
+                        number.runs[0].font.includes("italic")
+                          ? "italic"
+                          : "normal"
+                      }
+                      fill={number.runs[0].color}
+                    >
+                      {number.runs[0].text}
+                    </text>
+                  </svg>
                 )}
               </div>
             );

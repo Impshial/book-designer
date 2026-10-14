@@ -19,7 +19,12 @@ import {
   pageNumberLine,
   type TextLine,
 } from "./layout";
-import { type Project, serialize, parseProject } from "./model";
+import {
+  type Project,
+  serialize,
+  parseProject,
+  backgroundPlacement,
+} from "./model";
 import { preflight } from "./preflight";
 const ink = (hex: string) =>
   rgb(
@@ -92,6 +97,24 @@ export async function exportPdf(source: Project) {
         height: p.setup.height,
         color: ink(item.design.background),
       });
+      const background = item.design.backgroundImage;
+      if (background) {
+        const asset = p.assets[background.assetId];
+        const box = backgroundPlacement(asset, p.setup, background.fit);
+        page.pushOperators(
+          pushGraphicsState(),
+          rectangle(0, 0, p.setup.width, p.setup.height),
+          clip(),
+          endPath(),
+        );
+        page.drawImage(images.get(asset.id), {
+          x: box.x,
+          y: p.setup.height - box.y - box.height,
+          width: box.width,
+          height: box.height,
+        });
+        page.pushOperators(popGraphicsState());
+      }
       for (const o of item.design.objects) {
         if (o.hidden) continue;
         const angle = (-o.rotation * Math.PI) / 180,

@@ -48,6 +48,10 @@ export class Fonts {
     const f = this.faces.get(key);
     return (f.ascent / f.unitsPerEm) * size;
   }
+  descent(key: FontKey, size: number) {
+    const f = this.faces.get(key);
+    return (f.descent / f.unitsPerEm) * size;
+  }
   missing(text: string, key: FontKey) {
     const f = this.faces.get(key);
     return [...text]
