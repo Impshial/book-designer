@@ -1,0 +1,14 @@
+node_modules/
+.pnpm-store/
+dist/
+src-tauri/target/
+src-tauri/gen/schemas/
+.tools/
+test-results/
+playwright-report/
+tmp/
+*.log
+*.bookdesigner.bak
+*.bookdesigner.recovery
+*.tsbuildinfo
+output/windows/

@@ -1,0 +1,108 @@
+{
+  "exported": "2026-10-14T20:10:18.978Z",
+  "projectId": "e5093b03-e70d-4a0e-bcdf-28adfa652e05",
+  "revision": 0,
+  "profile": "generic-rgb-draft-1",
+  "status": "draft",
+  "pageCount": 4,
+  "pageBoxes": [
+    {
+      "media": {
+        "x": 0,
+        "y": 0,
+        "width": 432,
+        "height": 648
+      },
+      "trim": {
+        "x": 0,
+        "y": 0,
+        "width": 432,
+        "height": 648
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 432,
+        "height": 648
+      }
+    },
+    {
+      "media": {
+        "x": 0,
+        "y": 0,
+        "width": 432,
+        "height": 648
+      },
+      "trim": {
+        "x": 0,
+        "y": 0,
+        "width": 432,
+        "height": 648
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 432,
+        "height": 648
+      }
+    },
+    {
+      "media": {
+        "x": 0,
+        "y": 0,
+        "width": 432,
+        "height": 648
+      },
+      "trim": {
+        "x": 0,
+        "y": 0,
+        "width": 432,
+        "height": 648
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 432,
+        "height": 648
+      }
+    },
+    {
+      "media": {
+        "x": 0,
+        "y": 0,
+        "width": 432,
+        "height": 648
+      },
+      "trim": {
+        "x": 0,
+        "y": 0,
+        "width": 432,
+        "height": 648
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 432,
+        "height": 648
+      }
+    }
+  ],
+  "fonts": {
+    "references": 101,
+    "embedded": 101
+  },
+  "issues": [
+    {
+      "id": "generic",
+      "severity": "info",
+      "title": "Generic RGB reading proof",
+      "detail": "This export does not verify PDF/X, CMYK, transparency flattening, printer acceptance, or color soft proofing."
+    }
+  ],
+  "limitations": [
+    "RGB only; no output ICC profile.",
+    "No PDF/X or destination validation.",
+    "Pages export at trim size; provisional bleed is not exported.",
+    "No complex-script shaping, tagged PDF, or transparency flattening."
+  ]
+}

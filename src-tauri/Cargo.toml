@@ -1,0 +1,20 @@
+[package]
+name = "book-designer"
+version = "0.1.2"
+description = "An offline workspace for writing and designing books"
+authors = ["Book Designer contributors"]
+edition = "2021"
+
+[lib]
+name = "book_designer_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "=2.7.3", features = [] }
+
+[dependencies]
+tauri = { version = "=2.12.4", features = [] }
+tauri-plugin-dialog = "=2.8.3"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.154"
+tempfile = "=3.27.0"

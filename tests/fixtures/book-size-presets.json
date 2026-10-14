@@ -1,0 +1,122 @@
+[
+  {
+    "style": "Picture Book",
+    "name": "Small Square",
+    "widthInches": 8,
+    "heightInches": 8,
+    "default": false,
+    "description": "Compact illustrated books"
+  },
+  {
+    "style": "Picture Book",
+    "name": "Standard Square",
+    "widthInches": 8.5,
+    "heightInches": 8.5,
+    "default": true,
+    "description": "Recommended starting size for picture books"
+  },
+  {
+    "style": "Picture Book",
+    "name": "Portrait",
+    "widthInches": 8,
+    "heightInches": 10,
+    "default": false,
+    "description": "Full-page illustrations with room for text"
+  },
+  {
+    "style": "Picture Book",
+    "name": "Large Portrait",
+    "widthInches": 8.5,
+    "heightInches": 11,
+    "default": false,
+    "description": "Larger artwork, educational and activity books"
+  },
+  {
+    "style": "Picture Book",
+    "name": "Small Landscape",
+    "widthInches": 8.25,
+    "heightInches": 6,
+    "default": false,
+    "description": "Compact horizontal compositions"
+  },
+  {
+    "style": "Picture Book",
+    "name": "Landscape",
+    "widthInches": 10,
+    "heightInches": 8,
+    "default": false,
+    "description": "Wide scenes and illustrated storytelling"
+  },
+  {
+    "style": "Hybrid",
+    "name": "Compact Chapter Book",
+    "widthInches": 5.5,
+    "heightInches": 8.5,
+    "default": false,
+    "description": "Mostly text with occasional illustrations"
+  },
+  {
+    "style": "Hybrid",
+    "name": "Standard Illustrated Book",
+    "widthInches": 6,
+    "heightInches": 9,
+    "default": true,
+    "description": "Recommended balance of text and illustrations"
+  },
+  {
+    "style": "Hybrid",
+    "name": "Large Illustrated Book",
+    "widthInches": 7,
+    "heightInches": 10,
+    "default": false,
+    "description": "Frequent illustrations and larger type"
+  },
+  {
+    "style": "Hybrid",
+    "name": "Wide Portrait",
+    "widthInches": 7.5,
+    "heightInches": 9.25,
+    "default": false,
+    "description": "More horizontal room for text and pictures"
+  },
+  {
+    "style": "Hybrid",
+    "name": "Full-Page Illustrated",
+    "widthInches": 8,
+    "heightInches": 10,
+    "default": false,
+    "description": "Similar emphasis on artwork and text"
+  },
+  {
+    "style": "Text-only / Novel",
+    "name": "Small Paperback",
+    "widthInches": 5,
+    "heightInches": 8,
+    "default": false,
+    "description": "Compact novels and shorter books"
+  },
+  {
+    "style": "Text-only / Novel",
+    "name": "Medium Paperback",
+    "widthInches": 5.25,
+    "heightInches": 8,
+    "default": false,
+    "description": "Established fiction format between 5 and 5.5 in"
+  },
+  {
+    "style": "Text-only / Novel",
+    "name": "Trade Paperback",
+    "widthInches": 5.5,
+    "heightInches": 8.5,
+    "default": false,
+    "description": "General fiction in a smaller format"
+  },
+  {
+    "style": "Text-only / Novel",
+    "name": "Large Trade Paperback",
+    "widthInches": 6,
+    "heightInches": 9,
+    "default": true,
+    "description": "Recommended starting size for novels"
+  }
+]

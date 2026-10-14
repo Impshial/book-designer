@@ -1,0 +1,17 @@
+{
+  "environment": "win32",
+  "node": "v24.19.0",
+  "observed": "2026-10-14T20:10:20.071Z",
+  "results": [
+    {
+      "paragraphs": 400,
+      "pages": 58,
+      "layoutMs": 157
+    },
+    {
+      "paragraphs": 1800,
+      "pages": 258,
+      "layoutMs": 568
+    }
+  ]
+}

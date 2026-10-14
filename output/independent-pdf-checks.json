@@ -1,0 +1,38 @@
+[
+  {
+    "file": "picture-book-proof.pdf",
+    "pages": 4,
+    "dimensions_points": [
+      612,
+      612
+    ],
+    "embedded_font_references": 7,
+    "image_references": 1,
+    "text_occurrences": 0,
+    "sha256": "6cfcac31a1b02f2e533f2fb55d4ce15ba7d13a6d32452f9b550323a78c6683ba"
+  },
+  {
+    "file": "text-only-proof.pdf",
+    "pages": 4,
+    "dimensions_points": [
+      432,
+      648
+    ],
+    "embedded_font_references": 101,
+    "image_references": 0,
+    "text_occurrences": 24,
+    "sha256": "1296bebd0a4a7345d1a2b7cc6c7d63e49cce7ca90a28ec37fa5c47581b509a4c"
+  },
+  {
+    "file": "hybrid-proof.pdf",
+    "pages": 5,
+    "dimensions_points": [
+      432,
+      648
+    ],
+    "embedded_font_references": 73,
+    "image_references": 0,
+    "text_occurrences": 16,
+    "sha256": "0efc392e36f47289ef35de0a5629d628b4cac5445b5c20ba405dbfc768dbef5c"
+  }
+]
